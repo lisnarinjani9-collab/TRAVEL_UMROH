@@ -11,10 +11,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $jamaah_id        = intval($_POST['jamaah_id'] ?? 0);
     $paket_id         = intval($_POST['paket_id'] ?? 0);
     $keberangkatan_id = !empty($_POST['keberangkatan_id']) ? intval($_POST['keberangkatan_id']) : null;
-    $tanggal_daftar   = trim($_POST['tanggal_daftar'] ?? '');
+    
+    // PERBAIKAN DI SINI: disesuaikan dengan name="tgl_daftar" dari form HTML
+    $tgl_daftar       = trim($_POST['tgl_daftar'] ?? ''); 
     $status           = trim($_POST['status'] ?? '');
 
-    if (!$id || !$jamaah_id || !$paket_id || empty($tanggal_daftar) || empty($status)) {
+    if (!$id || !$jamaah_id || !$paket_id || empty($tgl_daftar) || empty($status)) {
         echo "<script>alert('Jamaah, Paket, Tanggal Daftar, dan Status wajib diisi!'); window.history.back();</script>";
         exit();
     }
@@ -23,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               SET jamaah_id = :jamaah_id, 
                   paket_id = :paket_id, 
                   keberangkatan_id = :keberangkatan_id, 
-                  tanggal_daftar = :tanggal_daftar, 
+                  tgl_daftar = :tgl_daftar, 
                   status = :status 
               WHERE id = :id";
 
@@ -37,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':keberangkatan_id', $keberangkatan_id, PDO::PARAM_INT);
     }
 
-    $stmt->bindParam(':tanggal_daftar', $tanggal_daftar);
+    $stmt->bindParam(':tgl_daftar', $tgl_daftar);
     $stmt->bindParam(':status', $status);
     $stmt->bindParam(':id', $id, PDO::PARAM_INT);
 

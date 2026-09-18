@@ -5,25 +5,75 @@ require_once "classes/Paket.php";
 
 $db = (new Database())->getConnection();
 $auth = new Auth($db);
-$auth->checkRole(['admin', 'petugas']);
 
-$paketObj = new Paket($db);
-$totalHaji  = $paketObj->countByJenis('Haji');
-$totalUmroh = $paketObj->countByJenis('Umroh');
+// Izinkan admin, petugas, DAN jamaah untuk akses index.php
+$auth->checkRole(['admin', 'petugas', 'jamaah']);
 
-// Mengambil Total Jamaah yang terdaftar
-$stmtJamaah = $db->query("SELECT COUNT(*) as total FROM jamaah");
-$totalJamaah = $stmtJamaah->fetch()['total'] ?? 0;
+$role = $_SESSION['role'] ?? '';
+$user_id = $_SESSION['user_id'] ?? null;
 
-// Mengambil Total Pendaftaran
-$stmtPendaftaran = $db->query("SELECT COUNT(*) as total FROM pendaftaran");
-$totalPendaftaran = $stmtPendaftaran->fetch()['total'] ?? 0;
+if ($role === 'jamaah') {
+    // 1. Ambil jamaah_id dari session, jika tidak ada cari berdasarkan user_id login
+    $jamaah_id = $_SESSION['jamaah_id'] ?? null;
+
+    if (!$jamaah_id && $user_id) {
+        $stmtGetJamaah = $db->prepare("SELECT id FROM jamaah WHERE user_id = ?");
+        $stmtGetJamaah->execute([$user_id]);
+        $resJamaah = $stmtGetJamaah->fetch();
+        $jamaah_id = $resJamaah['id'] ?? null;
+    }
+
+    if ($jamaah_id) {
+        // Query Total Pendaftaran Jamaah
+        $stmtPendaftaran = $db->prepare("SELECT COUNT(*) as total FROM pendaftaran WHERE jamaah_id = ?");
+        $stmtPendaftaran->execute([$jamaah_id]);
+        $totalPendaftaran = $stmtPendaftaran->fetch()['total'] ?? 0;
+
+        // Query Total Pembayaran Jamaah
+        $stmtPembayaran = $db->prepare("SELECT COUNT(*) as total FROM pembayaran WHERE jamaah_id = ?");
+        $stmtPembayaran->execute([$jamaah_id]);
+        $totalPembayaran = $stmtPembayaran->fetch()['total'] ?? 0;
+
+        // Database Anomali
+
+        // Query Jadwal Keberangkatan Terdekat
+        // $stmtJadwal = $db->prepare("
+        //     SELECT k.tanggal_berangkat, pkt.nama_paket 
+        //     FROM pendaftaran p 
+        //     LEFT JOIN keberangkatan k ON p.keberangkatan_id = k.id
+        //     JOIN paket pkt ON p.paket_id = pkt.id 
+        //     WHERE p.jamaah_id = ? AND p.status IN ('Berangkat', 'Proses', 'Menunggu') 
+        //     ORDER BY k.tanggal_berangkat ASC LIMIT 1
+        // ");
+        // $stmtJadwal->execute([$jamaah_id]);
+        // $jadwalData = $stmtJadwal->fetch();
+
+        // $jadwalKeberangkatan = !empty($jadwalData['tanggal_berangkat']) ? date('d M Y', strtotime($jadwalData['tanggal_berangkat'])) : 'Belum Ada';
+        // $namaPaketDiikuti = $jadwalData['nama_paket'] ?? 'Belum Terdaftar';
+    } else {
+        $totalPendaftaran = 0;
+        $totalPembayaran = 0;
+        $jadwalKeberangkatan = 'Belum Ada';
+        $namaPaketDiikuti = 'Belum Terdaftar';
+    }
+} else {
+    // Data khusus admin & petugas
+    $paketObj = new Paket($db);
+    $totalHaji  = $paketObj->countByJenis('Haji');
+    $totalUmroh = $paketObj->countByJenis('Umroh');
+
+    $stmtJamaah = $db->query("SELECT COUNT(*) as total FROM jamaah");
+    $totalJamaah = $stmtJamaah->fetch()['total'] ?? 0;
+
+    $stmtPendaftaran = $db->query("SELECT COUNT(*) as total FROM pendaftaran");
+    $totalPendaftaran = $stmtPendaftaran->fetch()['total'] ?? 0;
+}
 
 include "components/header.php";
 include "components/sidebar.php";
 ?>
 
-<!-- Import Google Fonts modern & FontAwesome -->
+<!-- Import Google Fonts & FontAwesome -->
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
@@ -40,7 +90,6 @@ include "components/sidebar.php";
         background-color: var(--bg-modern);
     }
 
-    /* Hero Banner Premium */
     .dashboard-hero-premium {
         background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%);
         border-radius: 24px;
@@ -79,7 +128,6 @@ include "components/sidebar.php";
         letter-spacing: 0.5px;
     }
 
-    /* Stat Cards Modern */
     .stat-card-modern {
         border-radius: 20px;
         border: 1px solid #e2e8f0;
@@ -120,7 +168,6 @@ include "components/sidebar.php";
         font-size: 1.5rem;
     }
 
-    /* Quick Action Buttons */
     .quick-card-interactive {
         border-radius: 20px;
         border: 1px solid #e2e8f0;
@@ -167,11 +214,11 @@ include "components/sidebar.php";
             <div class="row align-items-center position-relative" style="z-index: 2;">
                 <div class="col-lg-8">
                     <span class="badge gold-badge px-3 py-2 rounded-pill mb-3">
-                        <i class="fas fa-crown text-warning me-1"></i> Dashboard Eksekutif
+                        <i class="fas fa-crown text-warning me-1"></i> Dashboard <?= ucfirst($role); ?>
                     </span>
-                    <h2 class="fw-extrabold mb-2 display-6">Selamat Datang, <?= htmlspecialchars($_SESSION['username']); ?>! 👋</h2>
+                    <h2 class="fw-extrabold mb-2 display-6">Selamat Datang, <?= htmlspecialchars($_SESSION['username'] ?? 'Pengguna'); ?>! 👋</h2>
                     <p class="mb-0 text-light opacity-90 fs-6 style-italic fw-normal">
-                        "Labbaikallahumma Labbaik" — Kelola dan pantau seluruh operasional layanan pendaftaran, kuota jamaah, serta porsi Haji & Umroh secara terpadu hari ini.
+                        "Labbaikallahumma Labbaik" — Selamat datang di Layanan Informasi Haji & Umroh Kemenhaj Panel.
                     </p>
                 </div>
             </div>
@@ -191,147 +238,249 @@ include "components/sidebar.php";
 
         <!-- Grid Cards Statistik Modern -->
         <div class="row g-4 mb-4">
-            <!-- Paket Haji -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card stat-card-modern haji-card shadow-sm p-3 h-100">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <span class="text-muted fw-semibold small d-block mb-1">Paket Haji</span>
-                            <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalHaji); ?></h2>
+            <?php if ($role === 'jamaah'): ?>
+                <!-- Tampilan Card Khusus Jamaah (3 Card) -->
+                <div class="col-12 col-md-4">
+                    <div class="card stat-card-modern haji-card shadow-sm p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-muted fw-semibold small d-block mb-1">Jadwal Keberangkatan</span>
+                                <h2 class="fw-bold text-dark mb-0 fs-3"><?= $jadwalKeberangkatan; ?></h2>
+                            </div>
+                            <div class="icon-box-modern bg-warning bg-opacity-10 text-warning">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
                         </div>
-                        <div class="icon-box-modern bg-warning bg-opacity-10 text-warning">
-                            <i class="fas fa-kaaba"></i>
+                        <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="fas fa-plane text-warning me-1"></i> Program</span>
+                            <span class="fw-semibold text-dark text-truncate" style="max-width: 140px;"><?= htmlspecialchars($namaPaketDiikuti); ?></span>
                         </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
-                        <span><i class="fas fa-check-circle text-warning me-1"></i> Layanan Aktif</span>
-                        <span class="fw-semibold text-dark">Hajj Program</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- Paket Umroh -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card stat-card-modern umroh-card shadow-sm p-3 h-100">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <span class="text-muted fw-semibold small d-block mb-1">Paket Umroh</span>
-                            <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalUmroh); ?></h2>
+                <div class="col-12 col-md-4">
+                    <div class="card stat-card-modern pendaftaran-card shadow-sm p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-muted fw-semibold small d-block mb-1">Pendaftaran Saya</span>
+                                <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalPendaftaran); ?></h2>
+                            </div>
+                            <div class="icon-box-modern bg-primary bg-opacity-10 text-primary">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
                         </div>
-                        <div class="icon-box-modern bg-info bg-opacity-10 text-info">
-                            <i class="fas fa-plane-departure"></i>
+                        <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="fas fa-info-circle text-primary me-1"></i> Riwayat</span>
+                            <span class="fw-semibold text-dark">Pendaftaran</span>
                         </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
-                        <span><i class="fas fa-check-circle text-info me-1"></i> Layanan Aktif</span>
-                        <span class="fw-semibold text-dark">Umrah Travel</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- Total Jamaah -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card stat-card-modern jamaah-card shadow-sm p-3 h-100">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <span class="text-muted fw-semibold small d-block mb-1">Total Jamaah</span>
-                            <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalJamaah); ?></h2>
+                <div class="col-12 col-md-4">
+                    <div class="card stat-card-modern jamaah-card shadow-sm p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-muted fw-semibold small d-block mb-1">Riwayat Pembayaran</span>
+                                <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalPembayaran); ?></h2>
+                            </div>
+                            <div class="icon-box-modern bg-success bg-opacity-10 text-success">
+                                <i class="fas fa-wallet"></i>
+                            </div>
                         </div>
-                        <div class="icon-box-modern bg-success bg-opacity-10 text-success">
-                            <i class="fas fa-users"></i>
+                        <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="fas fa-check-circle text-success me-1"></i> Lunas/DP</span>
+                            <span class="fw-semibold text-dark">Transaksi</span>
                         </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
-                        <span><i class="fas fa-user-check text-success me-1"></i> Terverifikasi</span>
-                        <span class="fw-semibold text-dark">Data Jamaah</span>
                     </div>
                 </div>
-            </div>
 
-            <!-- Total Pendaftaran -->
-            <div class="col-12 col-sm-6 col-xl-3">
-                <div class="card stat-card-modern pendaftaran-card shadow-sm p-3 h-100">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div>
-                            <span class="text-muted fw-semibold small d-block mb-1">Total Pendaftaran</span>
-                            <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalPendaftaran); ?></h2>
+            <?php else: ?>
+                <!-- Tampilan Card Khusus Admin & Petugas -->
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card stat-card-modern haji-card shadow-sm p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-muted fw-semibold small d-block mb-1">Paket Haji</span>
+                                <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalHaji); ?></h2>
+                            </div>
+                            <div class="icon-box-modern bg-warning bg-opacity-10 text-warning">
+                                <i class="fas fa-kaaba"></i>
+                            </div>
                         </div>
-                        <div class="icon-box-modern bg-primary bg-opacity-10 text-primary">
-                            <i class="fas fa-file-invoice"></i>
+                        <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="fas fa-check-circle text-warning me-1"></i> Layanan Aktif</span>
+                            <span class="fw-semibold text-dark">Hajj Program</span>
                         </div>
-                    </div>
-                    <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
-                        <span><i class="fas fa-sync text-primary me-1"></i> Transaksi</span>
-                        <span class="fw-semibold text-dark">Registrasi</span>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Header Quick Actions -->
-        <div class="mb-3">
-            <h5 class="fw-bold text-dark mb-1">Akses Pintas</h5>
-            <p class="text-muted small mb-0">Menu interaktif untuk mempermudah operasional harian</p>
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card stat-card-modern umroh-card shadow-sm p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-muted fw-semibold small d-block mb-1">Paket Umroh</span>
+                                <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalUmroh); ?></h2>
+                            </div>
+                            <div class="icon-box-modern bg-info bg-opacity-10 text-info">
+                                <i class="fas fa-plane-departure"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="fas fa-check-circle text-info me-1"></i> Layanan Aktif</span>
+                            <span class="fw-semibold text-dark">Umrah Travel</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card stat-card-modern jamaah-card shadow-sm p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-muted fw-semibold small d-block mb-1">Total Jamaah</span>
+                                <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalJamaah); ?></h2>
+                            </div>
+                            <div class="icon-box-modern bg-success bg-opacity-10 text-success">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="fas fa-user-check text-success me-1"></i> Terverifikasi</span>
+                            <span class="fw-semibold text-dark">Data Jamaah</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-sm-6 col-xl-3">
+                    <div class="card stat-card-modern pendaftaran-card shadow-sm p-3 h-100">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <span class="text-muted fw-semibold small d-block mb-1">Total Pendaftaran</span>
+                                <h2 class="fw-bold text-dark mb-0 display-6"><?= number_format($totalPendaftaran); ?></h2>
+                            </div>
+                            <div class="icon-box-modern bg-primary bg-opacity-10 text-primary">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
+                            <span><i class="fas fa-sync text-primary me-1"></i> Transaksi</span>
+                            <span class="fw-semibold text-dark">Registrasi</span>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
         </div>
 
         <!-- Menu Akses Cepat Modern -->
+        <div class="mb-3">
+            <h5 class="fw-bold text-dark mb-1">Akses Pintas</h5>
+            <p class="text-muted small mb-0">Menu interaktif untuk mempermudah navigasi</p>
+        </div>
+
         <div class="row g-3">
-            <div class="col-md-4">
-                <a href="form_tambah_paket.php" class="quick-card-interactive p-3 shadow-sm">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="icon-box-modern bg-emerald text-white" style="background-color: var(--primary-emerald);">
-                                <i class="fas fa-plus"></i>
+            <?php if ($role === 'jamaah'): ?>
+                <div class="col-md-4">
+                    <a href="form_pendaftaran_jamaah.php" class="quick-card-interactive p-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="icon-box-modern text-white" style="background-color: var(--primary-emerald);">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">Daftar Haji/Umroh</h6>
+                                    <span class="text-muted small">Pengajuan porsi baru</span>
+                                </div>
                             </div>
-                            <div>
-                                <h6 class="fw-bold mb-0 text-dark">Buat Paket Baru</h6>
-                                <span class="text-muted small">Kelola program Haji & Umroh</span>
-                            </div>
+                            <div class="action-arrow"><i class="fas fa-arrow-right"></i></div>
                         </div>
-                        <div class="action-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </div>
-                </a>
-            </div>
+                    </a>
+                </div>
 
-            <div class="col-md-4">
-                <a href="tabel_jamaah.php" class="quick-card-interactive p-3 shadow-sm">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="icon-box-modern text-dark" style="background-color: var(--light-gold); color: var(--accent-gold) !important;">
-                                <i class="fas fa-id-card"></i>
+                <div class="col-md-4">
+                    <a href="riwayat_pendaftaran.php" class="quick-card-interactive p-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="icon-box-modern text-dark" style="background-color: var(--light-gold); color: var(--accent-gold) !important;">
+                                    <i class="fas fa-history"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">Status Pendaftaran</h6>
+                                    <span class="text-muted small">Cek progres pendaftaran</span>
+                                </div>
                             </div>
-                            <div>
-                                <h6 class="fw-bold mb-0 text-dark">Kelola Data Jamaah</h6>
-                                <span class="text-muted small">Kelola porsi & dokumen</span>
-                            </div>
+                            <div class="action-arrow"><i class="fas fa-arrow-right"></i></div>
                         </div>
-                        <div class="action-arrow">
-                            <i class="fas fa-arrow-right"></i>
-                        </div>
-                    </div>
-                </a>
-            </div>
+                    </a>
+                </div>
 
-            <div class="col-md-4">
-                <a href="generate_laporan.php" class="quick-card-interactive p-3 shadow-sm">
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="icon-box-modern bg-info text-white">
-                                <i class="fas fa-chart-line"></i>
+                <div class="col-md-4">
+                    <a href="profile_jamaah.php" class="quick-card-interactive p-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="icon-box-modern bg-info text-white">
+                                    <i class="fas fa-user-cog"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">Profil Saya</h6>
+                                    <span class="text-muted small">Atur akun & biodata</span>
+                                </div>
                             </div>
-                            <div>
-                                <h6 class="fw-bold mb-0 text-dark">Cetak Laporan</h6>
-                                <span class="text-muted small">Rekapitulasi & transaksi</span>
+                            <div class="action-arrow"><i class="fas fa-arrow-right"></i></div>
+                        </div>
+                    </a>
+                </div>
+            <?php else: ?>
+                <!-- Quick Actions Admin / Petugas -->
+                <div class="col-md-4">
+                    <a href="form_tambah_paket.php" class="quick-card-interactive p-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="icon-box-modern text-white" style="background-color: var(--primary-emerald);">
+                                    <i class="fas fa-plus"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">Buat Paket Baru</h6>
+                                    <span class="text-muted small">Kelola program Haji & Umroh</span>
+                                </div>
                             </div>
+                            <div class="action-arrow"><i class="fas fa-arrow-right"></i></div>
                         </div>
-                        <div class="action-arrow">
-                            <i class="fas fa-arrow-right"></i>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="tabel_jamaah.php" class="quick-card-interactive p-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="icon-box-modern text-dark" style="background-color: var(--light-gold); color: var(--accent-gold) !important;">
+                                    <i class="fas fa-id-card"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">Kelola Data Jamaah</h6>
+                                    <span class="text-muted small">Kelola porsi & dokumen</span>
+                                </div>
+                            </div>
+                            <div class="action-arrow"><i class="fas fa-arrow-right"></i></div>
                         </div>
-                    </div>
-                </a>
-            </div>
+                    </a>
+                </div>
+
+                <div class="col-md-4">
+                    <a href="tabel_laporan.php" class="quick-card-interactive p-3 shadow-sm">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="icon-box-modern bg-info text-white">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">Cetak Laporan</h6>
+                                    <span class="text-muted small">Rekapitulasi & transaksi</span>
+                                </div>
+                            </div>
+                            <div class="action-arrow"><i class="fas fa-arrow-right"></i></div>
+                        </div>
+                    </a>
+                </div>
+            <?php endif; ?>
         </div>
 
     </div>

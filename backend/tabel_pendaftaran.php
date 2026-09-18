@@ -160,9 +160,7 @@ include "components/sidebar.php";
                     <p class="mb-0 text-muted small">Kelola transaksi pendaftaran porsi Haji dan Umroh</p>
                 </div>
             </div>
-            <a href="form_tambah_pendaftaran.php" class="btn btn-gold px-4 py-2-5 d-flex align-items-center gap-2 shadow-sm">
-                <i class="fas fa-plus"></i> Tambah Pendaftaran
-            </a>
+            
         </div>
 
         <?php if (!empty($errorMessage)): ?>
@@ -272,25 +270,41 @@ include "components/sidebar.php";
                                             <?php endif; ?>
                                         </td>
 
-                                        <!-- Status Badge -->
-                                        <td class="py-3">
-                                            <?php 
-                                                $st = strtolower($row['status'] ?? 'pending');
-                                                if ($st === 'lunas'): 
-                                            ?>
-                                                <span class="badge rounded-pill px-3 py-2 fw-semibold" style="background-color: #d1fae5; color: #059669; border: 1px solid #a7f3d0;">
-                                                    <i class="fas fa-check-circle me-1"></i> Lunas
-                                                </span>
-                                            <?php elseif ($st === 'cicilan' || $st === 'proses'): ?>
-                                                <span class="badge rounded-pill px-3 py-2 fw-semibold" style="background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a;">
-                                                    <i class="fas fa-clock me-1"></i> <?= ucfirst($st); ?>
-                                                </span>
-                                            <?php else: ?>
-                                                <span class="badge rounded-pill px-3 py-2 fw-semibold" style="background-color: #fee2e2; color: #dc2626; border: 1px solid #fecaca;">
-                                                    <i class="fas fa-hourglass-start me-1"></i> <?= ucfirst($st); ?>
-                                                </span>
-                                            <?php endif; ?>
-                                        </td>
+<!-- Status Badge -->
+<td class="py-3">
+    <?php 
+        $st = strtolower($row['status'] ?? 'menunggu');
+        
+        switch ($st) {
+            case 'lunas':
+            case 'selesai':
+                $bgClass = "background-color: #d1fae5; color: #059669; border: 1px solid #a7f3d0;";
+                $iconClass = "fas fa-check-circle";
+                break;
+            case 'berangkat':
+                $bgClass = "background-color: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;";
+                $iconClass = "fas fa-plane-departure";
+                break;
+            case 'pulang':
+                $bgClass = "background-color: #f3e8ff; color: #9333ea; border: 1px solid #e9d5ff;";
+                $iconClass = "fas fa-plane-arrival";
+                break;
+            case 'proses':
+            case 'cicilan':
+                $bgClass = "background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a;";
+                $iconClass = "fas fa-spinner fa-spin";
+                break;
+            case 'menunggu':
+            default:
+                $bgClass = "background-color: #fff7ed; color: #ea580c; border: 1px solid #ffedd5;";
+                $iconClass = "fas fa-clock";
+                break;
+        }
+    ?>
+    <span class="badge rounded-pill px-3 py-2 fw-semibold" style="<?= $bgClass; ?>">
+        <i class="<?= $iconClass; ?> me-1"></i> <?= ucfirst($st); ?>
+    </span>
+</td>
 
                                         <!-- Tombol Aksi -->
                                         <td class="py-3 text-center">

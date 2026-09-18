@@ -28,6 +28,9 @@ $keberangkatanList = $db->query("SELECT k.id, k.tanggal_berangkat, p.nama_paket
                                  JOIN paket p ON k.paket_id = p.id 
                                  ORDER BY k.tanggal_berangkat ASC")->fetchAll(PDO::FETCH_ASSOC);
 
+// Tanggal minimal untuk date picker (hari ini) supaya tanggal yang sudah lewat tidak bisa dipilih
+$todayDate = date('Y-m-d');
+
 include "components/header.php";
 include "components/sidebar.php";
 ?>
@@ -59,31 +62,34 @@ include "components/sidebar.php";
 
                     <div class="row">
                         <div class="col-md-6 mb-4">
-                            <label class="form-label fw-bold text-dark small">PILIH JAMAAH <span class="text-danger">*</span></label>
-                            <select name="jamaah_id" class="form-select rounded-3 py-2" required>
+                            <label class="form-label fw-bold text-dark small">PILIH JAMAAH <span class="text-danger"></span></label>
+                            <select name="jamaah_id" class="form-select rounded-3 py-2" disabled>
                                 <?php foreach ($jamaahList as $j): ?>
                                     <option value="<?= $j['id']; ?>" <?= $data['jamaah_id'] == $j['id'] ? 'selected' : ''; ?>>
                                         <?= htmlspecialchars($j['nama_lengkap']); ?> (NIK: <?= htmlspecialchars($j['nik']); ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <!-- Field dikunci: value asli tetap dikirim lewat hidden input -->
+                            <input type="hidden" name="jamaah_id" value="<?= $data['jamaah_id']; ?>">
                         </div>
 
                         <div class="col-md-6 mb-4">
-                            <label class="form-label fw-bold text-dark small">PILIH PAKET <span class="text-danger">*</span></label>
-                            <select name="paket_id" class="form-select rounded-3 py-2" required>
+                            <label class="form-label fw-bold text-dark small">PILIH PAKET <span class="text-danger"></span></label>
+                            <select name="paket_id" class="form-select rounded-3 py-2" disabled>
                                 <?php foreach ($paketList as $p): ?>
                                     <option value="<?= $p['id']; ?>" <?= $data['paket_id'] == $p['id'] ? 'selected' : ''; ?>>
                                         <?= htmlspecialchars($p['nama_paket']); ?> - [<?= $p['jenis']; ?>] (Rp <?= number_format($p['harga'], 0, ',', '.'); ?>)
                                     </option>
                                 <?php endforeach; ?>
                             </select>
+                            <input type="hidden" name="paket_id" value="<?= $data['paket_id']; ?>">
                         </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label fw-bold text-dark small">JADWAL KEBERANGKATAN (OPSIONAL)</label>
-                        <select name="keberangkatan_id" class="form-select rounded-3 py-2">
+                        <label class="form-label fw-bold text-dark small">JADWAL KEBERANGKATAN</label>
+                        <select name="keberangkatan_id" class="form-select rounded-3 py-2" disabled>
                             <option value="">-- Belum Dijadwalkan --</option>
                             <?php foreach ($keberangkatanList as $kb): ?>
                                 <option value="<?= $kb['id']; ?>" <?= $data['keberangkatan_id'] == $kb['id'] ? 'selected' : ''; ?>>
@@ -91,21 +97,25 @@ include "components/sidebar.php";
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <input type="hidden" name="keberangkatan_id" value="<?= $data['keberangkatan_id']; ?>">
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-4">
-                            <label class="form-label fw-bold text-dark small">TANGGAL DAFTAR <span class="text-danger">*</span></label>
-                            <input type="date" name="tgl_daftar" class="form-control rounded-3 py-2" value="<?= $data['tgl_daftar']; ?>" required>
+                            <label class="form-label fw-bold text-dark small">TANGGAL DAFTAR <span class="text-danger"></span></label>
+                            <input type="date" class="form-control rounded-3 py-2" value="<?= $data['tgl_daftar']; ?>" min="<?= $todayDate; ?>" disabled>
+                            <!-- Field dikunci: value asli tetap dikirim lewat hidden input -->
+                            <input type="hidden" name="tgl_daftar" value="<?= $data['tgl_daftar']; ?>">
                         </div>
                         <div class="col-md-6 mb-4">
-                            <label class="form-label fw-bold text-dark small">STATUS PENDAFTARAN <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold text-dark small">STATUS PENDAFTARAN <span class="text-danger"></span></label>
                             <select name="status" class="form-select rounded-3 py-2" required>
                                 <?php 
-                                    $statuses = ['Pending', 'Proses', 'Cicilan', 'Lunas', 'Batal'];
+                                    // Daftar status disesuaikan dengan alur aplikasi
+                                    $statuses = ['Menunggu', 'Berangkat', 'Proses', 'Pulang', 'Selesai'];
                                     foreach ($statuses as $st):
                                 ?>
-                                    <option value="<?= $st; ?>" <?= $data['status'] == $st ? 'selected' : ''; ?>><?= $st; ?></option>
+                                    <option value="<?= $st; ?>" <?= strcasecmp($data['status'], $st) === 0 ? 'selected' : ''; ?>><?= $st; ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>

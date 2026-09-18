@@ -39,7 +39,8 @@ include "components/sidebar.php";
 ?>
 
 <!-- Import Google Fonts & Icons -->
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
 
 <style>
     :root {
@@ -67,17 +68,29 @@ include "components/sidebar.php";
 
     .stat-card-paket:hover {
         transform: translateY(-4px);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.06) !important;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06) !important;
     }
 
     .stat-card-paket::before {
         content: '';
         position: absolute;
-        top: 0; left: 0; width: 100%; height: 4px;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
     }
-    .stat-card-paket.total::before { background: var(--primary-emerald); }
-    .stat-card-paket.haji::before { background: var(--accent-gold); }
-    .stat-card-paket.umroh::before { background: #0284c7; }
+
+    .stat-card-paket.total::before {
+        background: var(--primary-emerald);
+    }
+
+    .stat-card-paket.haji::before {
+        background: var(--accent-gold);
+    }
+
+    .stat-card-paket.umroh::before {
+        background: #0284c7;
+    }
 
     .icon-box-p {
         width: 52px;
@@ -145,6 +158,7 @@ include "components/sidebar.php";
         background-color: #fef3c7;
         color: #d97706;
     }
+
     .action-btn-view:hover {
         background-color: #d97706;
         color: #ffffff;
@@ -154,6 +168,7 @@ include "components/sidebar.php";
         background-color: #e0f2fe;
         color: #0284c7;
     }
+
     .action-btn-edit:hover {
         background-color: #0284c7;
         color: #ffffff;
@@ -163,6 +178,7 @@ include "components/sidebar.php";
         background-color: #fee2e2;
         color: #ef4444;
     }
+
     .action-btn-delete:hover {
         background-color: #ef4444;
         color: #ffffff;
@@ -174,9 +190,11 @@ include "components/sidebar.php";
 
     <div class="content-body p-4">
         <!-- Header Halaman Modern -->
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <div
+            class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
             <div class="d-flex align-items-center">
-                <div class="icon-box-p text-white me-3 shadow-sm" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%);">
+                <div class="icon-box-p text-white me-3 shadow-sm"
+                    style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%);">
                     <i class="fas fa-kaaba"></i>
                 </div>
                 <div>
@@ -184,7 +202,7 @@ include "components/sidebar.php";
                     <p class="mb-0 text-muted small">Kelola katalog dan harga paket perjalanan Haji & Umroh</p>
                 </div>
             </div>
-            
+
             <a href="form_tambah_paket.php" class="btn btn-gold px-4 py-2.5 shadow-sm d-flex align-items-center gap-2">
                 <i class="fas fa-plus"></i> Add Paket Baru
             </a>
@@ -199,7 +217,8 @@ include "components/sidebar.php";
                             <span class="text-muted small fw-semibold d-block mb-1">Total Paket Available</span>
                             <h3 class="fw-bold text-dark mb-0"><?= $totalPaket; ?></h3>
                         </div>
-                        <div class="icon-box-p text-emerald" style="background-color: rgba(6, 78, 59, 0.1); color: var(--primary-emerald);">
+                        <div class="icon-box-p text-emerald"
+                            style="background-color: rgba(6, 78, 59, 0.1); color: var(--primary-emerald);">
                             <i class="fas fa-box"></i>
                         </div>
                     </div>
@@ -267,144 +286,176 @@ include "components/sidebar.php";
                         </thead>
                         <tbody>
                             <?php if (count($paketList) > 0): ?>
-                                <?php $no = 1; foreach ($paketList as $row): ?>
-                                <?php 
+                                <?php $no = 1;
+                                foreach ($paketList as $row): ?>
+                                    <?php
                                     $jenisText = $row['jenis'] ?? $row['jenis_paket'] ?? 'Umroh';
                                     $isHaji = (strpos(strtolower($jenisText), 'haji') !== false);
-                                    
+
                                     $durasiVal = !empty($row['durasi']) ? $row['durasi'] : '-';
                                     if (is_numeric($durasiVal)) {
                                         $durasiVal .= ' Hari';
                                     }
-                                ?>
-                                <tr class="border-bottom">
-                                    <td class="ps-3">
-                                        <span class="fw-bold text-secondary small">
-                                            <?= sprintf("%02d", $no++); ?>
-                                        </span>
-                                    </td>
-
-                                    <!-- Nama & Deskripsi Paket -->
-                                    <td class="py-3">
-                                        <div class="fw-bold text-dark fs-6 mb-1"><?= htmlspecialchars($row['nama_paket']); ?></div>
-                                        <div class="text-muted small text-truncate" style="max-width: 380px;">
-                                            <i class="fas fa-info-circle me-1 opacity-50"></i><?= htmlspecialchars($row['deskripsi'] ?? $row['fasilitas'] ?? '-'); ?>
-                                        </div>
-                                    </td>
-
-                                    <!-- Jenis -->
-                                    <td>
-                                        <?php if ($isHaji): ?>
-                                            <span class="badge rounded-pill px-3 py-2" style="background-color: #fef3c7; color: #d97706; font-size: 11px; font-weight: 600;">
-                                                <i class="fas fa-kaaba me-1"></i> Haji
+                                    ?>
+                                    <tr class="border-bottom">
+                                        <td class="ps-3">
+                                            <span class="fw-bold text-secondary small">
+                                                <?= sprintf("%02d", $no++); ?>
                                             </span>
-                                        <?php else: ?>
-                                            <span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 600;">
-                                                <i class="fas fa-plane-departure me-1"></i> Umroh
-                                            </span>
-                                        <?php endif; ?>
-                                    </td>
+                                        </td>
 
-                                    <!-- Harga -->
-                                    <td>
-                                        <span class="fw-bold" style="color: var(--accent-gold) !important; font-size: 15px;">
-                                            Rp <?= number_format($row['harga'] ?? 0, 0, ',', '.'); ?>
-                                        </span>
-                                    </td>
-
-                                    <!-- Durasi Paket -->
-                                    <td>
-                                        <div class="fw-semibold text-secondary small">
-                                            <i class="far fa-clock me-1 text-muted"></i> <?= htmlspecialchars($durasiVal); ?>
-                                        </div>
-                                    </td>
-
-                                    <!-- Kuota -->
-                                    <td>
-                                        <span class="badge bg-light text-dark border px-2.5 py-1.5 rounded-2 fw-medium">
-                                            <i class="fas fa-users me-1 text-muted"></i><?= htmlspecialchars($row['kuota'] ?? '0'); ?> Jamaah
-                                        </span>
-                                    </td>
-
-                                    <!-- Action -->
-                                    <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-2">
-                                            <!-- Tombol Mata (Detail Modal) -->
-                                            <button type="button" class="action-btn action-btn-view" data-bs-toggle="modal" data-bs-target="#modalDetail<?= $row['id']; ?>" title="Lihat Detail">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-
-                                            <!-- Tombol Edit -->
-                                            <a href="form_update_paket.php?id=<?= $row['id']; ?>" class="action-btn action-btn-edit" title="Edit Paket">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-
-                                            <!-- Tombol Hapus -->
-                                            <?php if ($userRole === 'admin'): ?>
-                                            <a href="hapus_paket.php?id=<?= $row['id']; ?>" class="action-btn action-btn-delete" onclick="return confirm('Yakin ingin menghapus paket ini?');" title="Hapus Paket">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </a>
-                                            <?php endif; ?>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- Modal Detail Paket (Tombol X di-remove) -->
-                                <div class="modal fade" id="modalDetail<?= $row['id']; ?>" tabindex="-1" aria-labelledby="modalDetailLabel<?= $row['id']; ?>" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered modal-lg">
-                                        <div class="modal-content border-0 shadow-lg rounded-4">
-                                            <div class="modal-header border-bottom-0 pb-0">
-                                                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2" id="modalDetailLabel<?= $row['id']; ?>">
-                                                    <i class="fas fa-info-circle text-warning"></i> Detail Paket Travel
-                                                </h5>
+                                        <!-- Nama & Deskripsi Paket -->
+                                        <td class="py-3">
+                                            <div class="fw-bold text-dark fs-6 mb-1">
+                                                <?= htmlspecialchars($row['nama_paket']); ?></div>
+                                            <div class="text-muted small text-truncate" style="max-width: 380px;">
+                                                <i
+                                                    class="fas fa-align-left me-1 opacity-50"></i><?= htmlspecialchars($row['deskripsi'] ?? $row['fasilitas'] ?? '-'); ?>
                                             </div>
-                                            <div class="modal-body p-4">
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Nama Paket</label>
-                                                        <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($row['nama_paket']); ?></div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Jenis Paket</label>
-                                                        <div>
-                                                            <?php if ($isHaji): ?>
-                                                                <span class="badge rounded-pill px-3 py-2" style="background-color: #fef3c7; color: #d97706; font-size: 11px; font-weight: 600;">
-                                                                    <i class="fas fa-kaaba me-1"></i> Haji
-                                                                </span>
-                                                            <?php else: ?>
-                                                                <span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 600;">
-                                                                    <i class="fas fa-plane-departure me-1"></i> Umroh
-                                                                </span>
-                                                            <?php endif; ?>
+                                        </td>
+
+                                        <!-- Jenis -->
+                                        <td>
+                                            <?php if ($isHaji): ?>
+                                                <span class="badge rounded-pill px-3 py-2"
+                                                    style="background-color: #fef3c7; color: #d97706; font-size: 11px; font-weight: 600;">
+                                                    <i class="fas fa-kaaba me-1"></i> Haji
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge rounded-pill px-3 py-2"
+                                                    style="background-color: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 600;">
+                                                    <i class="fas fa-plane-departure me-1"></i> Umroh
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+
+                                        <!-- Harga -->
+                                        <td>
+                                            <span class="fw-bold"
+                                                style="color: var(--accent-gold) !important; font-size: 15px;">
+                                                Rp <?= number_format($row['harga'] ?? 0, 0, ',', '.'); ?>
+                                            </span>
+                                        </td>
+
+                                        <!-- Durasi Paket -->
+                                        <td>
+                                            <div class="fw-semibold text-secondary small">
+                                                <i class="far fa-clock me-1 text-muted"></i>
+                                                <?= htmlspecialchars($durasiVal); ?>
+                                            </div>
+                                        </td>
+
+                                        <!-- Kuota -->
+                                        <td>
+                                            <span class="badge bg-light text-dark border px-2.5 py-1.5 rounded-2 fw-medium">
+                                                <i
+                                                    class="fas fa-users me-1 text-muted"></i><?= htmlspecialchars($row['kuota'] ?? '0'); ?>
+                                                Jamaah
+                                            </span>
+                                        </td>
+
+                                        <!-- Action -->
+                                        <td class="text-center">
+                                            <div class="d-flex justify-content-center gap-2">
+                                                <!-- Tombol Mata (Detail Modal) -->
+                                                <button type="button" class="action-btn action-btn-view" data-bs-toggle="modal"
+                                                    data-bs-target="#modalDetail<?= $row['id']; ?>" title="Lihat Detail">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+
+                                                <!-- Tombol Edit -->
+                                                <a href="form_update_paket.php?id=<?= $row['id']; ?>"
+                                                    class="action-btn action-btn-edit" title="Edit Paket">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+
+                                                <!-- Tombol Hapus -->
+                                                <?php if ($userRole === 'admin'): ?>
+                                                    <a href="hapus_paket.php?id=<?= $row['id']; ?>"
+                                                        class="action-btn action-btn-delete"
+                                                        onclick="return confirm('Yakin ingin menghapus paket ini?');"
+                                                        title="Hapus Paket">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Modal Detail Paket (Tombol X di-remove) -->
+                                    <div class="modal fade" id="modalDetail<?= $row['id']; ?>" tabindex="-1"
+                                        aria-labelledby="modalDetailLabel<?= $row['id']; ?>" aria-hidden="true">
+                                        <div class="modal-dialog modal-dialog-centered modal-lg">
+                                            <div class="modal-content border-0 shadow-lg rounded-4">
+                                                <div class="modal-header border-bottom-0 pb-0">
+                                                    <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2"
+                                                        id="modalDetailLabel<?= $row['id']; ?>">
+                                                        <i class="fas fa-info-circle text-warning"></i> Detail Paket Travel
+                                                    </h5>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <label class="text-muted small fw-semibold d-block mb-1">Nama
+                                                                Paket</label>
+                                                            <div class="fw-bold text-dark fs-6">
+                                                                <?= htmlspecialchars($row['nama_paket']); ?></div>
                                                         </div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Harga / Pax</label>
-                                                        <div class="fw-bold text-success fs-5">Rp <?= number_format($row['harga'] ?? 0, 0, ',', '.'); ?></div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Durasi</label>
-                                                        <div class="fw-bold text-dark"><i class="far fa-clock me-1 text-muted"></i><?= htmlspecialchars($durasiVal); ?></div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Kuota Tersedia</label>
-                                                        <div class="fw-bold text-dark"><i class="fas fa-users me-1 text-muted"></i><?= htmlspecialchars($row['kuota'] ?? '0'); ?> Jamaah</div>
-                                                    </div>
-                                                    <div class="col-12">
-                                                        <hr class="my-2">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Deskripsi & Fasilitas Paket</label>
-                                                        <div class="bg-light p-3 rounded-3 text-dark small" style="white-space: pre-line; line-height: 1.6;">
-                                                            <?= htmlspecialchars($row['deskripsi'] ?? $row['fasilitas'] ?? 'Tidak ada deskripsi detail.'); ?>
+                                                        <div class="col-md-6">
+                                                            <label class="text-muted small fw-semibold d-block mb-1">Jenis
+                                                                Paket</label>
+                                                            <div>
+                                                                <?php if ($isHaji): ?>
+                                                                    <span class="badge rounded-pill px-3 py-2"
+                                                                        style="background-color: #fef3c7; color: #d97706; font-size: 11px; font-weight: 600;">
+                                                                        <i class="fas fa-kaaba me-1"></i> Haji
+                                                                    </span>
+                                                                <?php else: ?>
+                                                                    <span class="badge rounded-pill px-3 py-2"
+                                                                        style="background-color: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 600;">
+                                                                        <i class="fas fa-plane-departure me-1"></i> Umroh
+                                                                    </span>
+                                                                <?php endif; ?>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="text-muted small fw-semibold d-block mb-1">Harga /
+                                                                Pax</label>
+                                                            <div class="fw-bold text-success fs-5">Rp
+                                                                <?= number_format($row['harga'] ?? 0, 0, ',', '.'); ?></div>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label
+                                                                class="text-muted small fw-semibold d-block mb-1">Durasi</label>
+                                                            <div class="fw-bold text-dark"><i
+                                                                    class="far fa-clock me-1 text-muted"></i><?= htmlspecialchars($durasiVal); ?>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="text-muted small fw-semibold d-block mb-1">Kuota
+                                                                Tersedia</label>
+                                                            <div class="fw-bold text-dark"><i
+                                                                    class="fas fa-users me-1 text-muted"></i><?= htmlspecialchars($row['kuota'] ?? '0'); ?>
+                                                                Jamaah</div>
+                                                        </div>
+                                                        <div class="col-12">
+                                                            <hr class="my-2">
+                                                            <label class="text-muted small fw-semibold d-block mb-1">Deskripsi &
+                                                                Fasilitas Paket</label>
+                                                            <div class="bg-light p-3 rounded-3 text-dark small"
+                                                                style="white-space: pre-line; line-height: 1.6;">
+                                                                <?= htmlspecialchars($row['deskripsi'] ?? $row['fasilitas'] ?? 'Tidak ada deskripsi detail.'); ?>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div class="modal-footer border-top-0 pt-0">
-                                                <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Tutup</button>
+                                                <div class="modal-footer border-top-0 pt-0">
+                                                    <button type="button" class="btn btn-secondary px-4 rounded-3"
+                                                        data-bs-dismiss="modal">Tutup</button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
@@ -422,7 +473,7 @@ include "components/sidebar.php";
     </div>
 </div>
 
-<?php 
+<?php
 include "components/footer.php";
-include "components/bottom.php"; 
+include "components/bottom.php";
 ?>

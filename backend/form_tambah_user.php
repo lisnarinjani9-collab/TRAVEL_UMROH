@@ -45,9 +45,7 @@ include "components/sidebar.php";
                     <div class="mb-4">
                         <label for="role" class="form-label small fw-semibold" style="color: #44403c;">Role Hak Akses</label>
                         <select class="form-select form-select-lg fs-6" id="role" name="role" required>
-                            <option value="" selected disabled>-- Pilih Role --</option>
-                            <option value="admin">Admin</option>
-                            <option value="petugas">Petugas</option>
+                            <option value="petugas" selected disabled>Petugas</option>
                         </select>
                     </div>
 

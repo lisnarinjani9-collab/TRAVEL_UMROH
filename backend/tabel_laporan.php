@@ -6,58 +6,88 @@ $db = (new Database())->getConnection();
 $auth = new Auth($db);
 $auth->checkRole(['admin', 'petugas']);
 
-$userRole = $_SESSION['role'] ?? '';
-
-$laporanList = [];
+$laporanData = [];
+$totalPendaftaran = 0;
+$pendaftaranLunas = 0;
+$totalPembayaranMasuk = 0;
 $errorMessage = "";
 
 try {
-    // Mengambil data gabungan (JOIN) dari tabel pendaftaran, jamaah, paket, dan pembayaran
-$query = "SELECT 
-                p.id AS id_pendaftaran,
-                p.tgl_daftar,
-                j.nama_lengkap AS nama_jamaah,
-                j.nik AS no_identitas,
-                pkt.nama_paket,
-                pkt.jenis AS jenis_paket,
-                pkt.harga,
-                COALESCE(SUM(pm.jumlah_bayar), 0) AS total_bayar,
-                CASE 
-                    WHEN COALESCE(SUM(pm.jumlah_bayar), 0) >= pkt.harga THEN 'Lunas'
-                    WHEN COALESCE(SUM(pm.jumlah_bayar), 0) > 0 THEN 'Cicilan'
-                    ELSE 'Belum Bayar'
-                END AS status_pembayaran
-              FROM pendaftaran p
-              LEFT JOIN jamaah j ON p.id_jamaah = j.id
-              LEFT JOIN paket pkt ON p.id_paket = pkt.id
-              LEFT JOIN pembayaran pm ON p.id = pm.id_pendaftaran
-              GROUP BY p.id
-              ORDER BY p.id DESC";
-              
-    $stmt = $db->prepare($query);
+    // 1. Ambil data gabungan laporan tanpa membuat tabel laporan baru
+    $queryLaporan = "SELECT 
+                        pd.id AS pendaftaran_id,
+                        j.nama_lengkap AS nama_jamaah,
+                        j.nik,
+                        pk.nama_paket,
+                        pk.harga AS total_harga,
+                        pd.created_at AS tgl_daftar,
+                        COALESCE(
+                            (SELECT SUM(COALESCE(pm.jumlah_bayar, pm.nominal, pm.bayar, pm.jumlah, 0)) 
+                             FROM pembayaran pm 
+                             WHERE pm.pendaftaran_id = pd.id), 0
+                        ) AS total_dibayar,
+                        pd.status_pembayaran
+                     FROM pendaftaran pd
+                     LEFT JOIN jamaah j ON  pd.jamaah_id = j.id
+                     LEFT JOIN paket pk ON pd.paket_id = pk.id
+                     ORDER BY pd.id DESC";
+
+    $stmt = $db->prepare($queryLaporan);
     $stmt->execute();
-    $laporanList = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $errorMessage = "Terjadi kesalahan saat mengambil data laporan: " . $e->getMessage();
-}
+    $laporanData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Hitung Statistik Laporan
-$totalPendaftaran = count($laporanList);
-$totalLunas = 0;
-$totalPendapatan = 0;
-
-foreach ($laporanList as $lap) {
-    if ($lap['status_pembayaran'] === 'Lunas') {
-        $totalLunas++;
+    // 2. Hitung Card Ringkasan Laporan
+    $totalPendaftaran = count($laporanData);
+    
+    foreach ($laporanData as $row) {
+        $totalPembayaranMasuk += (float)$row['total_dibayar'];
+        
+        $status = strtolower($row['status_pembayaran'] ?? '');
+        $totalHarga = (float)($row['total_harga'] ?? 0);
+        $totalDibayar = (float)($row['total_dibayar'] ?? 0);
+        
+        if ($status === 'lunas' || ($totalHarga > 0 && $totalDibayar >= $totalHarga)) {
+            $pendaftaranLunas++;
+        }
     }
-    $totalPendapatan += $lap['total_bayar'];
+
+} catch (PDOException $e) {
+    // Fallback Query sederhanakan jika struktur tabel pembayaran berbeda
+    try {
+        $querySimple = "SELECT 
+                            pd.id AS pendaftaran_id,
+                            COALESCE(j.nama_lengkap, 'Jamaah') AS nama_jamaah,
+                            COALESCE(j.nik, '-') AS nik,
+                            COALESCE(pk.nama_paket, 'Paket Travel') AS nama_paket,
+                            COALESCE(pk.harga, 0) AS total_harga,
+                            COALESCE(pd.created_at, pd.tanggal_daftar, CURRENT_DATE) AS tgl_daftar,
+                            COALESCE(pd.total_bayar, pd.jumlah_bayar, 0) AS total_dibayar,
+                            COALESCE(pd.status_pembayaran, pd.status, 'Pending') AS status_pembayaran
+                        FROM pendaftaran pd
+                        LEFT JOIN jamaah j ON pd.jamaah_id = j.id
+                        LEFT JOIN paket pk ON pd.paket_id = pk.id
+                        ORDER BY pd.id DESC";
+
+        $stmt = $db->prepare($querySimple);
+        $stmt->execute();
+        $laporanData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $totalPendaftaran = count($laporanData);
+        foreach ($laporanData as $row) {
+            $totalPembayaranMasuk += (float)$row['total_dibayar'];
+            if (strtolower($row['status_pembayaran']) === 'lunas') {
+                $pendaftaranLunas++;
+            }
+        }
+    } catch (PDOException $ex) {
+        $errorMessage = "Terjadi kesalahan saat mengambil data laporan: " . $ex->getMessage();
+    }
 }
 
 include "components/header.php";
 include "components/sidebar.php";
 ?>
 
-<!-- Import Google Fonts & Icons -->
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
@@ -65,7 +95,6 @@ include "components/sidebar.php";
         --primary-emerald: #064e3b;
         --secondary-emerald: #047857;
         --accent-gold: #d97706;
-        --light-gold: #fef3c7;
         --bg-modern: #f8fafc;
     }
 
@@ -74,64 +103,21 @@ include "components/sidebar.php";
         background-color: var(--bg-modern);
     }
 
-    /* Stat Cards Modern */
-    .stat-card-laporan {
-        border-radius: 20px;
-        border: 1px solid #e2e8f0;
-        background: #ffffff;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stat-card-laporan:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 12px 24px rgba(0,0,0,0.06) !important;
-    }
-
-    .stat-card-laporan::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 4px;
-    }
-    .stat-card-laporan.total::before { background: var(--primary-emerald); }
-    .stat-card-laporan.lunas::before { background: #10b981; }
-    .stat-card-laporan.omset::before { background: var(--accent-gold); }
-
-    .icon-box-p {
+    .icon-header-box {
         width: 52px;
         height: 52px;
         border-radius: 14px;
+        background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.35rem;
     }
 
-    /* Styling Table Modern */
-    .custom-table-card {
+    .table-card {
         border-radius: 20px;
         border: 1px solid #e2e8f0;
-    }
-
-    .table-modern thead th {
-        background-color: #f8fafc;
-        color: #64748b;
-        font-weight: 700;
-        font-size: 0.75rem;
-        letter-spacing: 0.7px;
-        text-transform: uppercase;
-        border-bottom: 2px solid #e2e8f0;
-        padding-top: 1rem;
-        padding-bottom: 1rem;
-    }
-
-    .table-modern tbody tr {
-        transition: all 0.2s ease;
-    }
-
-    .table-modern tbody tr:hover {
-        background-color: rgba(241, 245, 249, 0.5);
+        width: 100%;
     }
 
     .btn-gold {
@@ -149,34 +135,32 @@ include "components/sidebar.php";
         box-shadow: 0 8px 15px rgba(217, 119, 6, 0.3);
     }
 
-    .action-btn {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        display: inline-flex;
+    .table th {
+        font-size: 0.825rem;
+        font-weight: 700;
+        color: #334155;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .card-stat {
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s ease;
+    }
+
+    .card-stat:hover {
+        transform: translateY(-3px);
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s ease;
-        border: none;
-    }
-
-    .action-btn-view {
-        background-color: #fef3c7;
-        color: #d97706;
-    }
-    .action-btn-view:hover {
-        background-color: #d97706;
-        color: #ffffff;
-    }
-
-    @media print {
-        .sidebar, .topbar, .btn-gold, .action-btn, .no-print {
-            display: none !important;
-        }
-        .main-wrapper {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
+        font-size: 1.2rem;
     }
 </style>
 
@@ -184,10 +168,10 @@ include "components/sidebar.php";
     <?php include "components/topbar.php"; ?>
 
     <div class="content-body p-4">
-        <!-- Header Halaman Modern -->
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <!-- Header Halaman -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
             <div class="d-flex align-items-center">
-                <div class="icon-box-p text-white me-3 shadow-sm" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%);">
+                <div class="icon-header-box text-white me-3 shadow-sm">
                     <i class="fas fa-file-invoice-dollar"></i>
                 </div>
                 <div>
@@ -196,48 +180,55 @@ include "components/sidebar.php";
                 </div>
             </div>
             
-            <!-- Tombol Print Laporan -->
             <button onclick="window.print()" class="btn btn-gold px-4 py-2.5 shadow-sm d-flex align-items-center gap-2">
                 <i class="fas fa-print"></i> Cetak Laporan
             </button>
         </div>
 
-        <!-- Ringkasan Stats Modern -->
+        <?php if (!empty($errorMessage)): ?>
+            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
+                <i class="fas fa-exclamation-triangle me-2"></i> <?= htmlspecialchars($errorMessage); ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Stat Cards Container -->
         <div class="row g-3 mb-4">
             <div class="col-md-4">
-                <div class="card stat-card-laporan total shadow-sm p-3">
-                    <div class="d-flex align-items-center justify-content-between">
+                <div class="card card-stat border-0 shadow-sm bg-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small fw-semibold d-block mb-1">Total Pendaftaran</span>
-                            <h3 class="fw-bold text-dark mb-0"><?= $totalPendaftaran; ?></h3>
+                            <p class="text-muted small fw-semibold mb-1">Total Pendaftaran</p>
+                            <h3 class="fw-bold text-dark mb-0"><?= number_format($totalPendaftaran); ?></h3>
                         </div>
-                        <div class="icon-box-p text-emerald" style="background-color: rgba(6, 78, 59, 0.1); color: var(--primary-emerald);">
+                        <div class="stat-icon bg-light text-primary">
                             <i class="fas fa-clipboard-list"></i>
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="col-md-4">
-                <div class="card stat-card-laporan lunas shadow-sm p-3">
-                    <div class="d-flex align-items-center justify-content-between">
+                <div class="card card-stat border-0 shadow-sm bg-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small fw-semibold d-block mb-1">Pendaftaran Lunas</span>
-                            <h3 class="fw-bold text-dark mb-0"><?= $totalLunas; ?></h3>
+                            <p class="text-muted small fw-semibold mb-1">Pendaftaran Lunas</p>
+                            <h3 class="fw-bold text-success mb-0"><?= number_format($pendaftaranLunas); ?></h3>
                         </div>
-                        <div class="icon-box-p bg-success bg-opacity-10 text-success">
+                        <div class="stat-icon bg-success bg-opacity-10 text-success">
                             <i class="fas fa-check-circle"></i>
                         </div>
                     </div>
                 </div>
             </div>
+
             <div class="col-md-4">
-                <div class="card stat-card-laporan omset shadow-sm p-3">
-                    <div class="d-flex align-items-center justify-content-between">
+                <div class="card card-stat border-0 shadow-sm bg-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <span class="text-muted small fw-semibold d-block mb-1">Total Pembayaran Masuk</span>
-                            <h3 class="fw-bold text-dark mb-0" style="font-size: 1.35rem;">Rp <?= number_format($totalPendapatan, 0, ',', '.'); ?></h3>
+                            <p class="text-muted small fw-semibold mb-1">Total Pembayaran Masuk</p>
+                            <h3 class="fw-bold text-dark mb-0">Rp <?= number_format($totalPembayaranMasuk, 0, ',', '.'); ?></h3>
                         </div>
-                        <div class="icon-box-p bg-warning bg-opacity-10 text-warning">
+                        <div class="stat-icon bg-warning bg-opacity-10 text-warning">
                             <i class="fas fa-wallet"></i>
                         </div>
                     </div>
@@ -245,170 +236,97 @@ include "components/sidebar.php";
             </div>
         </div>
 
-        <?php if (!empty($errorMessage)): ?>
-            <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 d-flex align-items-center gap-2">
-                <i class="fas fa-exclamation-triangle"></i> <?= htmlspecialchars($errorMessage); ?>
-            </div>
-        <?php endif; ?>
-
-        <!-- Table Card Container Modern -->
-        <div class="card custom-table-card border-0 shadow-sm bg-white w-100">
-            <div class="card-body p-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
+        <!-- Table Card Container -->
+        <div class="card table-card border-0 shadow-sm bg-white">
+            <div class="card-body p-4 p-md-5">
+                <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h5 class="fw-bold text-dark mb-1">Daftar Transaksi Jamaah</h5>
-                        <p class="mb-0 small text-muted">Rekapitulasi data gabungan jamaah, paket, dan status pembayaran</p>
+                        <p class="text-muted small mb-0">Rekapitulasi data gabungan jamaah, paket, dan status pembayaran</p>
                     </div>
                     <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
-                        <?= count($laporanList); ?> Data Laporan
+                        <?= count($laporanData); ?> Data Laporan
                     </span>
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-modern align-middle mb-0">
+                    <table class="table table-borderless align-middle mb-0">
                         <thead>
-                            <tr>
-                                <th class="ps-3" style="width: 60px;">NO</th>
-                                <th>INFORMASI JAMAAH</th>
-                                <th>PAKET TERPILIH</th>
-                                <th>TGL DAFTAR</th>
-                                <th>TOTAL HARGA</th>
-                                <th>TOTAL DIBAYAR</th>
-                                <th>STATUS BAYAR</th>
-                                <th class="text-center no-print" style="width: 90px;">AKSI</th>
+                            <tr class="border-bottom">
+                                <th class="pb-3 ps-2" style="width: 50px;">NO</th>
+                                <th class="pb-3">INFORMASI JAMAAH</th>
+                                <th class="pb-3">PAKET TERPILIH</th>
+                                <th class="pb-3">TGL DAFTAR</th>
+                                <th class="pb-3">TOTAL HARGA</th>
+                                <th class="pb-3">TOTAL DIBAYAR</th>
+                                <th class="pb-3 text-center">STATUS BAYAR</th>
+                                <th class="pb-3 text-center" style="width: 100px;">AKSI</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (count($laporanList) > 0): ?>
-                                <?php $no = 1; foreach ($laporanList as $row): ?>
+                            <?php if (count($laporanData) > 0): ?>
+                                <?php $no = 1; foreach ($laporanData as $row): ?>
                                 <?php 
-                                    $sBayar = $row['status_pembayaran'];
-                                    $badgeClass = 'bg-danger bg-opacity-10 text-danger';
-                                    if ($sBayar === 'Lunas') {
-                                        $badgeClass = 'bg-success bg-opacity-10 text-success';
-                                    } elseif ($sBayar === 'Cicilan') {
-                                        $badgeClass = 'bg-warning bg-opacity-10 text-warning';
+                                    $harga = (float)($row['total_harga'] ?? 0);
+                                    $dibayar = (float)($row['total_dibayar'] ?? 0);
+                                    $statusRaw = strtolower($row['status_pembayaran'] ?? '');
+
+                                    if ($statusRaw === 'lunas' || ($harga > 0 && $dibayar >= $harga)) {
+                                        $badgeStatus = '<span class="badge rounded-pill px-3 py-1 bg-success bg-opacity-10 text-success fw-semibold"><i class="fas fa-check-circle me-1"></i> Lunas</span>';
+                                    } elseif ($dibayar > 0) {
+                                        $badgeStatus = '<span class="badge rounded-pill px-3 py-1 bg-warning bg-opacity-10 text-warning fw-semibold"><i class="fas fa-clock me-1"></i> Cicilan</span>';
+                                    } else {
+                                        $badgeStatus = '<span class="badge rounded-pill px-3 py-1 bg-danger bg-opacity-10 text-danger fw-semibold"><i class="fas fa-times-circle me-1"></i> Belum Bayar</span>';
                                     }
                                 ?>
                                 <tr class="border-bottom">
-                                    <td class="ps-3">
-                                        <span class="fw-bold text-secondary small">
-                                            <?= sprintf("%02d", $no++); ?>
-                                        </span>
-                                    </td>
-
-                                    <!-- Nama & Identitas Jamaah -->
-                                    <td class="py-3">
-                                        <div class="fw-bold text-dark fs-6 mb-1"><?= htmlspecialchars($row['nama_jamaah'] ?? 'Jamaah Tidak Ditemukan'); ?></div>
-                                        <div class="text-muted small">
-                                            <i class="far fa-id-card me-1 opacity-50"></i>NIK/ID: <?= htmlspecialchars($row['no_identitas'] ?? '-'); ?>
+                                    <td class="ps-2">
+                                        <div class="d-flex align-items-center justify-content-center rounded-3 fw-bold text-muted" 
+                                             style="width: 32px; height: 32px; background-color: #f1f5f9; font-size: 13px;">
+                                            <?= $no++; ?>
                                         </div>
                                     </td>
 
-                                    <!-- Paket Terpilih -->
                                     <td>
-                                        <div class="fw-semibold text-dark small"><?= htmlspecialchars($row['nama_paket'] ?? '-'); ?></div>
-                                        <small class="text-muted"><?= htmlspecialchars($row['jenis_paket'] ?? ''); ?></small>
+                                        <div class="fw-bold text-dark" style="font-size: 14px;"><?= htmlspecialchars($row['nama_jamaah'] ?? '-'); ?></div>
+                                        <div class="text-muted small" style="font-size: 12px;">NIK: <?= htmlspecialchars($row['nik'] ?? '-'); ?></div>
                                     </td>
 
-                                    <!-- Tgl Daftar -->
-                                    <td>
-                                        <div class="fw-semibold text-secondary small">
-                                            <i class="far fa-calendar-alt me-1 text-muted"></i>
-                                            <?= !empty($row['tgl_daftar']) ? date('d/m/Y', strtotime($row['tgl_daftar'])) : '-'; ?>
-                                        </div>
+                                    <td class="fw-semibold text-secondary" style="font-size: 13px;">
+                                        <?= htmlspecialchars($row['nama_paket'] ?? 'Paket Umum'); ?>
                                     </td>
 
-                                    <!-- Harga Paket -->
-                                    <td>
-                                        <span class="fw-semibold text-dark small">
-                                            Rp <?= number_format($row['harga'] ?? 0, 0, ',', '.'); ?>
-                                        </span>
+                                    <td class="small text-muted" style="font-size: 13px;">
+                                        <?= !empty($row['tgl_daftar']) ? date('d M Y', strtotime($row['tgl_daftar'])) : '-'; ?>
                                     </td>
 
-                                    <!-- Total Dibayar -->
-                                    <td>
-                                        <span class="fw-bold" style="color: var(--primary-emerald); font-size: 14px;">
-                                            Rp <?= number_format($row['total_bayar'] ?? 0, 0, ',', '.'); ?>
-                                        </span>
+                                    <td class="fw-bold text-dark" style="font-size: 13px;">
+                                        Rp <?= number_format($harga, 0, ',', '.'); ?>
                                     </td>
 
-                                    <!-- Status Pembayaran -->
-                                    <td>
-                                        <span class="badge rounded-pill px-3 py-2 <?= $badgeClass; ?>" style="font-size: 11px; font-weight: 600;">
-                                            <?= $sBayar; ?>
-                                        </span>
+                                    <td class="fw-bold text-success" style="font-size: 13px;">
+                                        Rp <?= number_format($dibayar, 0, ',', '.'); ?>
                                     </td>
 
-                                    <!-- Action -->
-                                    <td class="text-center no-print">
-                                        <div class="d-flex justify-content-center">
-                                            <!-- Tombol Detail Modal -->
-                                            <button type="button" class="action-btn action-btn-view" data-bs-toggle="modal" data-bs-target="#modalDetail<?= $row['id_pendaftaran']; ?>" title="Lihat Detail Laporan">
-                                                <i class="fas fa-eye"></i>
-                                            </button>
-                                        </div>
+                                    <td class="text-center">
+                                        <?= $badgeStatus; ?>
+                                    </td>
+
+                                    <td class="text-center">
+                                        <a href="detail_pembayaran.php?id=<?= $row['pendaftaran_id']; ?>" 
+                                           class="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-3 border-0" 
+                                           style="background-color: #e0f2fe; color: #0284c7; width: 34px; height: 34px;" 
+                                           title="Detail Pembayaran">
+                                            <i class="fas fa-eye" style="font-size: 13px;"></i>
+                                        </a>
                                     </td>
                                 </tr>
-
-                                <!-- Modal Detail Laporan -->
-                                <div class="modal fade" id="modalDetail<?= $row['id_pendaftaran']; ?>" tabindex="-1" aria-hidden="true">
-                                    <div class="modal-dialog modal-dialog-centered modal-lg">
-                                        <div class="modal-content border-0 shadow-lg rounded-4">
-                                            <div class="modal-header border-bottom-0 pb-0">
-                                                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-                                                    <i class="fas fa-file-alt text-warning"></i> Detail Rincian Laporan
-                                                </h5>
-                                            </div>
-                                            <div class="modal-body p-4">
-                                                <div class="row g-3">
-                                                    <div class="col-md-6">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Nama Jamaah</label>
-                                                        <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($row['nama_jamaah'] ?? '-'); ?></div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">No Identitas / NIK</label>
-                                                        <div class="fw-bold text-dark fs-6"><?= htmlspecialchars($row['no_identitas'] ?? '-'); ?></div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Paket Travel</label>
-                                                        <div class="fw-bold text-dark"><?= htmlspecialchars($row['nama_paket'] ?? '-'); ?></div>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Tanggal Pendaftaran</label>
-                                                        <div class="fw-bold text-dark"><?= !empty($row['tgl_daftar']) ? date('d F Y', strtotime($row['tgl_daftar'])) : '-'; ?></div>
-                                                    </div>
-                                                    <div class="col-12"><hr class="my-2"></div>
-                                                    <div class="col-md-4">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Biaya Paket</label>
-                                                        <div class="fw-bold text-dark fs-6">Rp <?= number_format($row['harga'] ?? 0, 0, ',', '.'); ?></div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Jumlah Terbayar</label>
-                                                        <div class="fw-bold text-success fs-6">Rp <?= number_format($row['total_bayar'] ?? 0, 0, ',', '.'); ?></div>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label class="text-muted small fw-semibold d-block mb-1">Status Pembayaran</label>
-                                                        <div>
-                                                            <span class="badge rounded-pill px-3 py-2 <?= $badgeClass; ?>" style="font-size: 11px; font-weight: 600;">
-                                                                <?= $sBayar; ?>
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="modal-footer border-top-0 pt-0">
-                                                <button type="button" class="btn btn-secondary px-4 rounded-3" data-bs-dismiss="modal">Tutup</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
                                     <td colspan="8" class="text-center py-5 text-muted">
-                                        <i class="fas fa-folder-open fa-3x mb-3 text-light-gray d-block"></i>
-                                        Belum ada data transaksi/laporan yang tersedia.
+                                        <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
+                                        <p class="mb-0">Belum ada data transaksi/laporan yang tersedia.</p>
                                     </td>
                                 </tr>
                             <?php endif; ?>

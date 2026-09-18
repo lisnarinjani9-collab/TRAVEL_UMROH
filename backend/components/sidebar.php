@@ -120,62 +120,84 @@ $role = $_SESSION['role'] ?? '';
             </a>
         </li>
 
-        <li class="sidebar-menu-title">MANAJEMEN DATA</li>
-        <li>
-            <a href="tabel_jamaah.php" class="<?= $current_page == 'tabel_jamaah.php' ? 'active' : ''; ?>">
-                <i class="fas fa-users"></i> Data Jamaah
-            </a>
-        </li>
-        <li>
-            <a href="tabel_paket.php"
-                class="<?= ($current_page == 'tabel_paket.php' || $current_page == 'form_tambah_paket.php' || $current_page == 'form_update_paket.php') ? 'active' : ''; ?>">
-                <i class="fas fa-box"></i> Paket Haji/Umroh
-            </a>
-        </li>
-        <li>
-            <a href="tabel_pendaftaran.php" class="<?= $current_page == 'tabel_pendaftaran.php' ? 'active' : ''; ?>">
-                <i class="fas fa-clipboard-list"></i> Pendaftaran
-            </a>
-        </li>
-
-        <!-- Menu Dinamis: Admin (Kelola Petugas) vs Petugas (Settings) -->
-        <?php if ($role === 'admin'): ?>
+        <!-- MENU UNTUK ADMIN & PETUGAS -->
+        <?php if ($role === 'admin' || $role === 'petugas'): ?>
+            <li class="sidebar-menu-title">MANAJEMEN DATA</li>
             <li>
-                <a href="tabel_user.php"
-                    class="<?= ($current_page == 'tabel_user.php' || $current_page == 'form_update_user.php') ? 'active' : ''; ?>">
-                    <i class="fas fa-user-shield"></i> Kelola Petugas
+                <a href="tabel_jamaah.php" class="<?= $current_page == 'tabel_jamaah.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-users"></i> Data Jamaah
                 </a>
             </li>
-        <?php else: ?>
             <li>
-                <a href="profile_petugas.php"
-                    class="<?= $current_page == 'profile_petugas.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-cog"></i> Settings
+                <a href="tabel_paket.php" class="<?= ($current_page == 'tabel_paket.php' || $current_page == 'form_tambah_paket.php' || $current_page == 'form_update_paket.php') ? 'active' : ''; ?>">
+                    <i class="fas fa-box"></i> Paket Haji/Umroh
+                </a>
+            </li>
+            <li>
+                <a href="tabel_pendaftaran.php" class="<?= $current_page == 'tabel_pendaftaran.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-clipboard-list"></i> Pendaftaran
+                </a>
+            </li>
+
+            <?php if ($role === 'admin'): ?>
+                <li>
+                    <a href="tabel_user.php" class="<?= ($current_page == 'tabel_user.php' || $current_page == 'form_update_user.php') ? 'active' : ''; ?>">
+                        <i class="fas fa-user-shield"></i> Kelola Petugas
+                    </a>
+                </li>
+            <?php else: ?>
+                <li>
+                    <a href="profile_petugas.php" class="<?= $current_page == 'profile_petugas.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-cog"></i> Settings
+                    </a>
+                </li>
+            <?php endif; ?>
+
+            <li class="sidebar-menu-title">TRANSAKSI & LAPORAN</li>
+            <?php if ($role === 'admin'): ?>
+                <li>
+                    <a href="tabel_pembayaran.php" class="<?= $current_page == 'tabel_pembayaran.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-wallet"></i> Pembayaran
+                    </a>
+                </li>
+            <?php endif; ?>
+            <li>
+                <a href="tabel_keberangkatan.php" class="<?= $current_page == 'tabel_keberangkatan.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-calendar-alt"></i> Jadwal Keberangkatan
+                </a>
+            </li>
+            <li>
+                <a href="tabel_laporan.php" class="<?= $current_page == 'tabel_laporan.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-print"></i> Generate Laporan
+                </a>
+            </li>
+
+        <!-- MENU KHUSUS JAMAAH -->
+        <?php elseif ($role === 'jamaah'): ?>
+            <li class="sidebar-menu-title">LAYANAN JAMAAH</li>
+            <li>
+                <a href="riwayat_pendaftaran.php" class="<?= $current_page == 'riwayat_pendaftaran.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-history"></i> Pendaftaran 
+                </a>
+            </li>
+            <li>
+                <a href="riwayat_pembayaran.php" class="<?= $current_page == 'riwayat_pembayaran.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-receipt"></i> Status Pembayaran
+                </a>
+            </li>
+            <li>
+                <a href="jadwal_jamaah.php" class="<?= $current_page == 'jadwal_jamaah.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-calendar-check"></i> Jadwal
+                </a>
+            </li>
+
+            <li class="sidebar-menu-title">PENGATURAN</li>
+            <li>
+                <a href="profile_jamaah.php" class="<?= $current_page == 'profile_jamaah.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-user-cog"></i> Profil
                 </a>
             </li>
         <?php endif; ?>
-
-        <li class="sidebar-menu-title">TRANSAKSI & LAPORAN</li>
-
-        <?php if ($role === 'admin'): ?>
-            <li>
-                <a href="tabel_pembayaran.php" class="<?= $current_page == 'tabel_pembayaran.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-wallet"></i> Pembayaran
-                </a>
-            </li>
-        <?php endif; ?>
-
-        <li>
-            <a href="tabel_keberangkatan.php"
-                class="<?= $current_page == 'tabel_keberangkatan.php' ? 'active' : ''; ?>">
-                <i class="fas fa-calendar-alt"></i> Jadwal Keberangkatan
-            </a>
-        </li>
-        <li>
-            <a href="tabel_laporan.php" class="<?= $current_page == 'tabel_laporan.php' ? 'active' : ''; ?>">
-                <i class="fas fa-print"></i> Generate Laporan
-            </a>
-        </li>
 
         <li class="sidebar-menu-title">SISTEM</li>
         <li>

@@ -1,8 +1,6 @@
 <?php
 require_once "connection.php";
 require_once "classes/Auth.php";
-// Opsi 1: Jika menggunakan class Jadwal terpisah
-// require_once "classes/Jadwal.php";
 
 $db = (new Database())->getConnection();
 $auth = new Auth($db);
@@ -17,7 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $kuota             = intval($_POST['kuota'] ?? 0);
     $keterangan        = trim($_POST['keterangan'] ?? '');
 
-    // 1. Validasi Input Wajib Tidak Boleh Kosong
     if (empty($paket_id) || empty($tanggal_berangkat) || empty($maskapai) || empty($embarkasi) || empty($kuota)) {
         echo "<script>
             alert('Paket Travel, Tanggal Keberangkatan, Maskapai, Embarkasi, dan Kuota wajib diisi!');
@@ -26,7 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // 2. Validasi Kuota Minimum
     if ($kuota < 1) {
         echo "<script>
             alert('Kuota Penerbangan minimal 1 Pax!');
@@ -35,17 +31,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // 3. Simpan ke Database
     try {
-        // PERBAIKAN: Menggunakan kolom 'kuota_penerbangan' dan 'status'
-        $query = "INSERT INTO keberangkatan (paket_id, tanggal_berangkat, tgl_kepulangan, maskapai, embarkasi, kuota_penerbangan, keterangan) 
-                  VALUES (:paket_id, :tanggal_berangkat, :tgl_kepulangan, :maskapai, :embarkasi, :kuota, :keterangan, 'Mendatang')";
+        // PERBAIKAN: Menggunakan nama tabel jadwal_keberangkatan & nama kolom tgl_keberangkatan
+        $query = "INSERT INTO jadwal_keberangkatan (paket_id, tgl_keberangkatan, tgl_kepulangan, maskapai, embarkasi, kuota_penerbangan, keterangan) 
+                  VALUES (:paket_id, :tanggal_berangkat, :tgl_kepulangan, :maskapai, :embarkasi, :kuota, :keterangan)";
         
         $stmt = $db->prepare($query);
         $stmt->bindParam(':paket_id', $paket_id);
         $stmt->bindParam(':tanggal_berangkat', $tanggal_berangkat);
         
-        // Handle tanggal kepulangan NULL jika kosong
         if (empty($tgl_kepulangan)) {
             $stmt->bindValue(':tgl_kepulangan', null, PDO::PARAM_NULL);
         } else {
@@ -73,3 +67,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: tabel_keberangkatan.php");
     exit();
 }
+?>

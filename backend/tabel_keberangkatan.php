@@ -12,19 +12,19 @@ $jadwal = [];
 $errorMessage = "";
 
 try {
-    // 1. Kueri Utama: Mengambil data tanpa kolom jenis_paket (menggunakan jenis / tipe jika ada)
+    // Kueri Utama dengan pengurutan berdasarkan ID jika nama kolom tanggal bervariasi
     $query = "SELECT jk.*, 
                      pk.nama_paket,
                      COALESCE(pk.jenis, pk.tipe, 'Haji/Umroh') AS jenis_layanan
               FROM jadwal_keberangkatan jk
               LEFT JOIN paket pk ON jk.paket_id = pk.id
-              ORDER BY jk.tgl_keberangkatan ASC";
+              ORDER BY jk.id DESC";
 
     $stmt = $db->prepare($query);
     $stmt->execute();
     $jadwal = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // 2. Kueri Fallback jika struktur tabel keberangkatan berbeda
+    // Kueri Fallback jika nama tabel menggunakan 'keberangkatan'
     try {
         $queryFallback = "SELECT jk.*, 
                                  pk.nama_paket,
@@ -157,15 +157,19 @@ include "components/sidebar.php";
                             <?php if (count($jadwal) > 0): ?>
                                 <?php $no = 1; foreach ($jadwal as $row): ?>
                                 <?php 
-                                    $tglVal = $row['tgl_keberangkatan'] ?? $row['tanggal'] ?? null;
-                                    $tglBerangkat = $tglVal ? strtotime($tglVal) : time();
+                                    // Pengecekan variasi nama kolom keberangkatan
+                                    $tglVal = $row['tgl_keberangkatan'] ?? $row['tanggal_keberangkatan'] ?? $row['tanggal'] ?? null;
+                                    $tglBerangkat = $tglVal ? strtotime($tglVal) : null;
                                     $today = strtotime('today');
                                     
-                                    if ($tglBerangkat >= $today) {
+                                    if ($tglBerangkat && $tglBerangkat >= $today) {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px;"><i class="fas fa-clock me-1"></i> Mendatang</span>';
                                     } else {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #d1fae5; color: #047857; font-size: 11px;"><i class="fas fa-check-circle me-1"></i> Selesai</span>';
                                     }
+
+                                    // Pengecekan variasi nama kolom kepulangan
+                                    $tglPulangVal = $row['tgl_kepulangan'] ?? $row['tanggal_kepulangan'] ?? null;
                                 ?>
                                 <tr class="border-bottom">
                                     <td class="ps-2">
@@ -190,7 +194,7 @@ include "components/sidebar.php";
                                     </td>
 
                                     <td class="text-secondary small fw-medium" style="font-size: 13px;">
-                                        <?= !empty($row['tgl_kepulangan']) ? date('d M Y', strtotime($row['tgl_kepulangan'])) : '<span class="text-muted fst-italic">-</span>'; ?>
+                                        <?= !empty($tglPulangVal) ? date('d M Y', strtotime($tglPulangVal)) : '<span class="text-muted fst-italic">-</span>'; ?>
                                     </td>
 
                                     <td>

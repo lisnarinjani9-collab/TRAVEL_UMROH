@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $paket_id         = $_POST['paket_id'] ?? '';
     $keberangkatan_id = !empty($_POST['keberangkatan_id']) ? $_POST['keberangkatan_id'] : null;
     $tgl_daftar       = $_POST['tgl_daftar'] ?? date('Y-m-d');
-    $status           = $_POST['status'] ?? 'pending';
+    $status           = $_POST['status'] ?? 'Menunggu';
 
     if (empty($jamaah_id) || empty($paket_id)) {
         $errorMessage = "Jamaah dan Paket Wajib dipilih!";
@@ -220,11 +220,13 @@ include "components/sidebar.php";
 
                                 <!-- Status Pendaftaran -->
                                 <div class="col-md-4 mb-2">
-                                    <label for="status" class="form-label">Status Pembayaran / Porsi <span class="text-danger">*</span></label>
+                                    <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
                                     <select name="status" id="status" class="form-select" required>
-                                        <option value="pending" selected>Pending / Baru</option>
-                                        <option value="cicilan">Cicilan / Proses</option>
-                                        <option value="lunas">Lunas</option>
+                                        <option value="Menunggu" selected>Menunggu</option>
+                                        <option value="Berangkat">Berangkat</option>
+                                        <option value="Proses">Proses</option>
+                                        <option value="Pulang">Pulang</option>
+                                        <option value="Selesai">Selesai</option>
                                     </select>
                                 </div>
                             </div>
