@@ -7,64 +7,42 @@ $auth = new Auth($db);
 $auth->checkRole(['admin', 'petugas']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $paket_id          = intval($_POST['paket_id'] ?? 0);
-    $tanggal_berangkat = trim($_POST['tanggal_berangkat'] ?? '');
-    $tgl_kepulangan    = trim($_POST['tgl_kepulangan'] ?? '');
-    $maskapai          = trim($_POST['maskapai'] ?? '');
-    $embarkasi         = trim($_POST['embarkasi'] ?? '');
-    $kuota             = intval($_POST['kuota'] ?? 0);
-    $keterangan        = trim($_POST['keterangan'] ?? '');
+    $paket_id          = $_POST['paket_id'] ?? null;
+    $tanggal_berangkat = $_POST['tanggal_berangkat'] ?? null;
+    $tgl_kepulangan    = !empty($_POST['tgl_kepulangan']) ? $_POST['tgl_kepulangan'] : null;
+    $maskapai          = $_POST['maskapai'] ?? null;
+    $embarkasi         = $_POST['embarkasi'] ?? null;
+    $kuota_penerbangan = $_POST['kuota'] ?? null;
+    $keterangan        = $_POST['keterangan'] ?? null;
 
-    if (empty($paket_id) || empty($tanggal_berangkat) || empty($maskapai) || empty($embarkasi) || empty($kuota)) {
-        echo "<script>
-            alert('Paket Travel, Tanggal Keberangkatan, Maskapai, Embarkasi, dan Kuota wajib diisi!');
-            window.history.back();
-        </script>";
-        exit();
-    }
-
-    if ($kuota < 1) {
-        echo "<script>
-            alert('Kuota Penerbangan minimal 1 Pax!');
-            window.history.back();
-        </script>";
+    if (!$paket_id || !$tanggal_berangkat || !$maskapai || !$embarkasi || !$kuota_penerbangan) {
+        echo "<script>alert('Harap isi semua kolom wajib!'); window.history.back();</script>";
         exit();
     }
 
     try {
-        // PERBAIKAN: Menggunakan nama tabel jadwal_keberangkatan & nama kolom tgl_keberangkatan
-        $query = "INSERT INTO jadwal_keberangkatan (paket_id, tgl_keberangkatan, tgl_kepulangan, maskapai, embarkasi, kuota_penerbangan, keterangan) 
-                  VALUES (:paket_id, :tanggal_berangkat, :tgl_kepulangan, :maskapai, :embarkasi, :kuota, :keterangan)";
-        
-        $stmt = $db->prepare($query);
-        $stmt->bindParam(':paket_id', $paket_id);
-        $stmt->bindParam(':tanggal_berangkat', $tanggal_berangkat);
-        
-        if (empty($tgl_kepulangan)) {
-            $stmt->bindValue(':tgl_kepulangan', null, PDO::PARAM_NULL);
-        } else {
-            $stmt->bindParam(':tgl_kepulangan', $tgl_kepulangan);
-        }
+        $queryInsert = "INSERT INTO keberangkatan 
+                        (paket_id, tanggal_berangkat, tgl_kepulangan, maskapai, embarkasi, kuota_penerbangan, keterangan) 
+                        VALUES 
+                        (:paket_id, :tanggal_berangkat, :tgl_kepulangan, :maskapai, :embarkasi, :kuota_penerbangan, :keterangan)";
 
-        $stmt->bindParam(':maskapai', $maskapai);
-        $stmt->bindParam(':embarkasi', $embarkasi);
-        $stmt->bindParam(':kuota', $kuota);
-        $stmt->bindParam(':keterangan', $keterangan);
+        $stmt = $db->prepare($queryInsert);
+        $stmt->execute([
+            ':paket_id'          => $paket_id,
+            ':tanggal_berangkat' => $tanggal_berangkat,
+            ':tgl_kepulangan'    => $tgl_kepulangan,
+            ':maskapai'          => $maskapai,
+            ':embarkasi'         => $embarkasi,
+            ':kuota_penerbangan' => $kuota_penerbangan,
+            ':keterangan'        => $keterangan
+        ]);
 
-        if ($stmt->execute()) {
-            header("Location: tabel_keberangkatan.php?status=success");
-            exit();
-        } else {
-            echo "<script>alert('Gagal menambah jadwal keberangkatan!'); window.history.back();</script>";
-            exit();
-        }
-    } catch (PDOException $e) {
-        echo "<script>alert('Terjadi kesalahan database: " . addslashes($e->getMessage()) . "'); window.history.back();</script>";
+        echo "<script>alert('Jadwal keberangkatan berhasil ditambahkan!'); window.location='tabel_keberangkatan.php';</script>";
         exit();
+    } catch (PDOException $e) {
+        echo "Gagal menambahkan data: " . $e->getMessage();
     }
-
 } else {
-    header("Location: tabel_keberangkatan.php");
+    header("Location: form_tambah_jadwal.php");
     exit();
 }
-?>

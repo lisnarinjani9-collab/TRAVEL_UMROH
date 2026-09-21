@@ -11,7 +11,7 @@ $auth->checkRole(['jamaah']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $paket_id     = trim($_POST['pilih_paket_id'] ?? '');
     $metode_bayar = trim($_POST['metode_pembayaran'] ?? 'Transfer Bank');
-    $opsi_bayar   = trim($_POST['opsi_bayar'] ?? 'Lunas');
+    $opsi_bayar   = trim($_POST['opsi_bayar'] ?? 'Valid');
     
     $user_id   = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
     $jamaah_id = $_SESSION['jamaah_id'] ?? null;
@@ -42,29 +42,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $harga = $paketData['harga'] ?? 0;
         $tgl   = date('Y-m-d H:i:s');
 
-        // 3. Simpan ke Tabel Pendaftaran
-        $queryPendaftaran = "INSERT INTO pendaftaran (jamaah_id, paket_id, tgl_daftar, total_biaya, status) 
-                            VALUES (:jamaah_id, :paket_id, :tgl, :biaya, 'Pending')";
-        
-        try {
-            $stmtIns = $db->prepare($queryPendaftaran);
-            $stmtIns->execute([
-                ':jamaah_id' => $jamaah_id,
-                ':paket_id'  => $paket_id,
-                ':tgl'        => $tgl,
-                ':biaya'      => $harga
-            ]);
-        } catch (PDOException $e) {
-            // Fallback jika kolom total_biaya tidak ada
-            $queryPendaftaranFallback = "INSERT INTO pendaftaran (jamaah_id, paket_id, tgl_daftar, status) 
-                                         VALUES (:jamaah_id, :paket_id, :tgl, 'Pending')";
-            $stmtIns = $db->prepare($queryPendaftaranFallback);
-            $stmtIns->execute([
-                ':jamaah_id' => $jamaah_id,
-                ':paket_id'  => $paket_id,
-                ':tgl'        => $tgl
-            ]);
-        }
+// 3. Simpan ke Tabel Pendaftaran (Gunakan status 'Menunggu' sesuai ENUM database)
+$queryPendaftaran = "INSERT INTO pendaftaran (jamaah_id, paket_id, tgl_daftar, total_biaya, status) 
+                    VALUES (:jamaah_id, :paket_id, :tgl, :biaya, 'Menunggu')";
+
+try {
+    $stmtIns = $db->prepare($queryPendaftaran);
+    $stmtIns->execute([
+        ':jamaah_id' => $jamaah_id,
+        ':paket_id'  => $paket_id,
+        ':tgl'        => $tgl,
+        ':biaya'      => $harga
+    ]);
+} catch (PDOException $e) {
+    // Fallback jika kolom total_biaya tidak ada di tabel pendaftaran
+    $queryPendaftaranFallback = "INSERT INTO pendaftaran (jamaah_id, paket_id, tgl_daftar, status) 
+                                 VALUES (:jamaah_id, :paket_id, :tgl, 'Menunggu')";
+    $stmtIns = $db->prepare($queryPendaftaranFallback);
+    $stmtIns->execute([
+        ':jamaah_id' => $jamaah_id,
+        ':paket_id'  => $paket_id,
+        ':tgl'        => $tgl
+    ]);
+}
 
         $pendaftaran_id = $db->lastInsertId();
 

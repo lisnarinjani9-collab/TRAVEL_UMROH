@@ -23,15 +23,10 @@
             const hargaHidden = document.getElementById("harga");
 
             if (hargaDisplay && hargaHidden) {
-                // Filter input Real-Time saat mengetik
                 hargaDisplay.addEventListener("input", function () {
-                    // Hapus karakter selain angka (menolak -, +, huruf, simbol)
                     let cleanValue = this.value.replace(/\D/g, "");
-
-                    // Set nilai murni ke hidden input untuk disimpan ke DB
                     hargaHidden.value = cleanValue;
 
-                    // Tampilkan format Rupiah dengan pemisah titik
                     if (cleanValue !== "") {
                         this.value = parseInt(cleanValue, 10).toLocaleString("id-ID");
                     } else {
@@ -39,7 +34,6 @@
                     }
                 });
 
-                // Filter saat melakukan Paste teks
                 hargaDisplay.addEventListener("paste", function (e) {
                     e.preventDefault();
                     let pastedText = (e.clipboardData || window.clipboardData).getData("text");

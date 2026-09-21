@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kemenhaj Panel - Sistem Informasi Haji & Umroh</title>
-    <!-- Bootstrap 5 & FontAwesome -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -27,15 +26,22 @@
             color: var(--text-dark);
         }
 
-        /* Container Pembungkus Utama */
+        /* Container Pembungkus Vertikal Utama */
         .app-container {
             display: flex;
-            width: 100vw;
+            flex-direction: column;
             min-height: 100vh;
-            align-items: stretch; /* Memaksa sidebar turun penuh ke bawah sejajar dengan tinggi layar/konten */
+            width: 100%;
         }
 
-        /* Sidebar Styling (Bikin full tinggi) */
+        /* Pembungkus Tengah (Sidebar + Main Content) */
+        .main-content-wrapper {
+            display: flex;
+            flex: 1 0 auto;
+            width: 100%;
+        }
+
+        /* Sidebar Flex */
         .sidebar {
             width: 260px;
             flex-shrink: 0;
@@ -44,40 +50,37 @@
             z-index: 1050;
             display: flex;
             flex-direction: column;
-            min-height: 100vh;
         }
 
-        /* Wrapper Konten Utama */
+        /* Wrapper Content */
         .main-wrapper {
-            flex-grow: 1;
-            width: calc(100% - 260px);
-            min-height: 100vh;
+            flex: 1;
+            min-width: 0;
             background-color: #f7f4ee;
             display: flex;
             flex-direction: column;
-            justify-content: space-between; /* Menjaga footer tetap di paling bawah */
         }
 
-        /* Content Body dengan Jarak Kanan Pas (Tidak Mepet) */
         .content-body {
-            padding: 24px 40px 30px 30px; /* Padding kanan ditambah ke 40px */
+            padding: 24px 40px 30px 30px;
             width: 100%;
             box-sizing: border-box;
-            flex-grow: 1;
+            flex: 1;
         }
 
-        /* Footer Styling */
+        /* Footer Di Luar Sidebar (Lebar 100% Menimpa Bawah Sidebar) */
         .main-footer {
-            background-color: #f7f4ee;
+            background-color: #eae5dc;
             color: var(--text-muted);
             font-size: 13px;
             padding: 15px 0;
             text-align: center;
-            border-top: 1px solid #e2d7c3;
+            border-top: 1px solid #e0d6c5;
             width: 100%;
+            flex-shrink: 0;
+            z-index: 1060;
         }
 
-        /* Overlay Mobile */
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -97,25 +100,14 @@
                 height: 100vh;
                 transition: all 0.3s ease-in-out;
             }
-
-            .sidebar.show {
-                left: 0;
-            }
-
-            .sidebar-overlay.show {
-                display: block;
-            }
-
-            .main-wrapper {
-                width: 100% !important;
-            }
-
-            .content-body {
-                padding: 15px;
-            }
+            .sidebar.show { left: 0; }
+            .sidebar-overlay.show { display: block; }
+            .main-wrapper { width: 100% !important; }
+            .content-body { padding: 15px; }
         }
     </style>
 </head>
 <body>
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="app-container">
+    <div class="main-content-wrapper">

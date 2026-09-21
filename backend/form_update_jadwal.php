@@ -37,6 +37,20 @@ $stmtPaket = $db->prepare("SELECT id, nama_paket FROM paket ORDER BY nama_paket 
 $stmtPaket->execute();
 $paketList = $stmtPaket->fetchAll(PDO::FETCH_ASSOC);
 
+// Tanggal hari ini (YYYY-MM-DD)
+$today = date('Y-m-d');
+
+// Mengambil nilai tanggal keberangkatan & kepulangan
+$tglBerangkat = $jadwal['tanggal_berangkat'] ?? $jadwal['tgl_keberangkatan'] ?? '';
+$tglPulang    = $jadwal['tgl_kepulangan'] ?? $jadwal['tanggal_kepulangan'] ?? '';
+
+// Menghitung tanggal minimum kepulangan (minimal H+1 dari tanggal keberangkatan)
+if (!empty($tglBerangkat)) {
+    $minPulang = date('Y-m-d', strtotime($tglBerangkat . ' +1 day'));
+} else {
+    $minPulang = date('Y-m-d', strtotime($today . ' +1 day'));
+}
+
 include "components/header.php";
 include "components/sidebar.php";
 ?>
@@ -119,7 +133,7 @@ include "components/sidebar.php";
         <!-- Form Card Container -->
         <div class="card form-card border-0 shadow-sm bg-white">
             <div class="card-body p-4">
-                <form action="proses_update_jadwal.php" method="POST">
+                <form action="proses_update_jadwal.php" method="POST" id="formJadwal">
                     <input type="hidden" name="id" value="<?= $jadwal['id']; ?>">
 
                     <div class="row g-3">
@@ -139,17 +153,19 @@ include "components/sidebar.php";
                         <!-- Tanggal Keberangkatan -->
                         <div class="col-md-6 mb-2">
                             <label for="tanggal_berangkat" class="form-label fw-semibold">Tanggal Keberangkatan <span class="text-danger">*</span></label>
-                            <?php $tglBerangkat = $jadwal['tanggal_berangkat'] ?? $jadwal['tgl_keberangkatan'] ?? ''; ?>
                             <input type="date" class="form-control" id="tanggal_berangkat" name="tanggal_berangkat" 
-                                   value="<?= htmlspecialchars($tglBerangkat); ?>" required>
+                                   min="<?= $today; ?>" 
+                                   value="<?= htmlspecialchars($tglBerangkat); ?>" 
+                                   onkeydown="return false;" required>
                         </div>
 
                         <!-- Tanggal Kepulangan -->
                         <div class="col-md-6 mb-2">
                             <label for="tgl_kepulangan" class="form-label fw-semibold">Tanggal Kepulangan (Estimasi)</label>
-                            <?php $tglPulang = $jadwal['tgl_kepulangan'] ?? $jadwal['tanggal_kepulangan'] ?? ''; ?>
                             <input type="date" class="form-control" id="tgl_kepulangan" name="tgl_kepulangan" 
-                                   value="<?= htmlspecialchars($tglPulang); ?>">
+                                   min="<?= $minPulang; ?>" 
+                                   value="<?= htmlspecialchars($tglPulang); ?>" 
+                                   onkeydown="return false;">
                         </div>
 
                         <!-- Nama Maskapai -->
@@ -198,6 +214,58 @@ include "components/sidebar.php";
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("formJadwal");
+    const inputBerangkat = document.getElementById("tanggal_berangkat");
+    const inputKepulangan = document.getElementById("tgl_kepulangan");
+
+    // Fungsi menghitung tanggal H+1
+    function getNextDay(dateString) {
+        if (!dateString) return "";
+        let date = new Date(dateString);
+        date.setDate(date.getDate() + 1);
+        return date.toISOString().split("T")[0];
+    }
+
+    // Setiap tanggal keberangkatan berubah
+    inputBerangkat.addEventListener("change", function () {
+        const valBerangkat = this.value;
+        if (valBerangkat) {
+            const minPulangVal = getNextDay(valBerangkat);
+            inputKepulangan.min = minPulangVal;
+
+            // Jika tanggal kepulangan <= tanggal keberangkatan, atur ke H+1
+            if (inputKepulangan.value && inputKepulangan.value <= valBerangkat) {
+                inputKepulangan.value = minPulangVal;
+            }
+        }
+    });
+
+    // Validasi saat Form Disubmit
+    form.addEventListener("submit", function (e) {
+        const tglBerangkat = new Date(inputBerangkat.value);
+        const tglPulang = inputKepulangan.value ? new Date(inputKepulangan.value) : null;
+        const todayStr = "<?= $today; ?>";
+        const today = new Date(todayStr);
+
+        // Validasi tidak boleh tanggal sebelum hari ini
+        if (tglBerangkat < today) {
+            alert("Tanggal keberangkatan tidak boleh kurang dari hari ini!");
+            e.preventDefault();
+            return false;
+        }
+
+        // Validasi tanggal kepulangan harus setelah tanggal keberangkatan (tidak boleh sama / lebih awal)
+        if (tglPulang && tglPulang <= tglBerangkat) {
+            alert("Tanggal kepulangan harus setelah tanggal keberangkatan (minimal H+1)!");
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
 
 <?php 
 include "components/footer.php";

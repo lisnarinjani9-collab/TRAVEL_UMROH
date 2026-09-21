@@ -25,7 +25,9 @@ try {
                      j.no_hp,
                      pk.nama_paket,
                      COALESCE(pk.harga, 0) AS harga_paket,
-                     COALESCE(pk.jenis, pk.tipe, 'Haji/Umroh') AS jenis_layanan
+                     COALESCE(pk.jenis, pk.tipe, 'Haji/Umroh') AS jenis_layanan,
+                     pk.durasi,
+                     pk.deskripsi
               FROM pendaftaran p
               LEFT JOIN jamaah j ON p.jamaah_id = j.id
               LEFT JOIN paket pk ON p.paket_id = pk.id";
@@ -52,7 +54,9 @@ try {
                                  'Jamaah' AS nama_jamaah,
                                  pk.nama_paket,
                                  COALESCE(pk.harga, 0) AS harga_paket,
-                                 'Haji/Umroh' AS jenis_layanan
+                                 'Haji/Umroh' AS jenis_layanan,
+                                 pk.durasi,
+                                 pk.deskripsi
                           FROM pendaftaran p
                           LEFT JOIN jamaah j ON p.jamaah_id = j.id
                           LEFT JOIN paket pk ON p.paket_id = pk.id";
@@ -143,6 +147,7 @@ include "components/sidebar.php";
         align-items: center;
         justify-content: center;
         border-radius: 8px;
+        border: none;
         transition: all 0.2s ease;
     }
 
@@ -283,10 +288,10 @@ include "components/sidebar.php";
 
                                     <td class="text-center">
                                         <div class="d-inline-flex gap-1">
-                                            <!-- Tombol Detail / Lihat (Mata Kuning) -->
-                                            <a href="detail_pendaftaran.php?id=<?= $row['id']; ?>" class="btn-action-yellow text-decoration-none" title="Lihat Detail">
+                                            <!-- Tombol Detail / Lihat (Mata Kuning) Membuka Modal -->
+                                            <button type="button" class="btn-action-yellow" data-bs-toggle="modal" data-bs-target="#modalDetail<?= $row['id']; ?>" title="Lihat Detail">
                                                 <i class="fas fa-eye" style="font-size: 12px;"></i>
-                                            </a>
+                                            </button>
                                             <!-- Tombol Update / Edit (Pensil Biru) -->
                                             <a href="edit_pendaftaran.php?id=<?= $row['id']; ?>" class="btn-action-blue text-decoration-none" title="Edit Pendaftaran">
                                                 <i class="fas fa-pen-to-square" style="font-size: 12px;"></i>
@@ -294,6 +299,58 @@ include "components/sidebar.php";
                                         </div>
                                     </td>
                                 </tr>
+
+                                <!-- Modal Detail Paket Travel -->
+                                <div class="modal fade" id="modalDetail<?= $row['id']; ?>" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content border-0 rounded-4 shadow p-3">
+                                            <div class="modal-header border-0 pb-0">
+                                                <h5 class="modal-title fw-bold text-dark d-flex align-items-center gap-2">
+                                                    <span class="d-inline-flex align-items-center justify-content-center bg-warning text-white rounded-circle" style="width: 28px; height: 28px; font-size: 14px;">
+                                                        <i class="fas fa-info"></i>
+                                                    </span>
+                                                    Detail Paket Travel
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body pt-4">
+                                                <div class="row g-3 mb-4">
+                                                    <div class="col-6">
+                                                        <p class="text-muted small mb-1">Nama Paket</p>
+                                                        <h6 class="fw-bold text-dark mb-0"><?= htmlspecialchars($row['nama_paket'] ?? '-'); ?></h6>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <p class="text-muted small mb-1">Jenis Paket</p>
+                                                        <span class="badge bg-warning text-dark px-3 py-1.5 rounded-pill fw-semibold">
+                                                            <?= htmlspecialchars($row['jenis_layanan']); ?>
+                                                        </span>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <p class="text-muted small mb-1">Harga / Pax</p>
+                                                        <h5 class="fw-bold text-success mb-0">Rp <?= number_format($totalBiaya, 0, ',', '.'); ?></h5>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <p class="text-muted small mb-1">Durasi</p>
+                                                        <h6 class="fw-bold text-dark mb-0 d-flex align-items-center gap-1">
+                                                            <i class="far fa-clock text-muted"></i> 
+                                                            <?= !empty($row['durasi']) ? htmlspecialchars($row['durasi']) . ' Hari' : '15 Hari'; ?>
+                                                        </h6>
+                                                    </div>
+                                                </div>
+
+                                                <div>
+                                                    <p class="text-muted small mb-2">Deskripsi & Fasilitas Paket</p>
+                                                    <div class="p-3 bg-light rounded-3 text-secondary small" style="min-height: 80px;">
+                                                        <?= nl2br(htmlspecialchars($row['deskripsi'] ?? "Hotel Premium, Transportasi Eksklusif, Konsumsi, Pembimbing")); ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer border-0 pt-0">
+                                                <button type="button" class="btn btn-secondary px-4 py-2 rounded-3 fw-semibold" data-bs-dismiss="modal" style="background-color: #64748b; border: none;">Tutup</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>

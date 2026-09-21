@@ -1,12 +1,10 @@
 <?php
-// Pastikan session sudah berjalan jika belum di-start sebelumnya
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
 $role = strtolower($_SESSION['role'] ?? '');
 
-// Pengaturan Teks & Ikon Judul berdasarkan Role
 if ($role === 'admin') {
     $panelTitle = 'Panel Kelola Admin';
     $panelIcon  = 'fa-building';
@@ -18,18 +16,15 @@ if ($role === 'admin') {
     $panelIcon  = 'fa-kaaba';
 }
 
-// Pengaturan Ikon Avatar berdasarkan Role
 $avatarIcon = ($role === 'jamaah') ? 'fa-user' : 'fa-user-tie';
 ?>
 
 <div class="topbar d-flex justify-content-between align-items-center px-3 px-md-4 py-3 border-bottom w-100 shadow-sm" style="background-color: #faf7f2; border-color: #e0d6c5 !important;">
     <div class="d-flex align-items-center gap-3">
-        <!-- Tombol Toggle Sidebar (HP) -->
         <button class="btn btn-light d-lg-none border-0 p-2" id="btnToggleSidebar" type="button" style="background-color: #eae5dc;">
             <i class="fas fa-bars fa-lg" style="color: #1a1a1a;"></i>
         </button>
 
-        <!-- Judul Panel Dinamis -->
         <div class="fw-bold d-flex align-items-center" style="color: #1a1a1a;">
             <i class="fas <?= $panelIcon; ?> me-2" style="color: #b38e46;"></i> 
             <span class="d-none d-sm-inline"><?= $panelTitle; ?></span>
@@ -37,7 +32,6 @@ $avatarIcon = ($role === 'jamaah') ? 'fa-user' : 'fa-user-tie';
         </div>
     </div>
 
-    <!-- Info User & Role -->
     <div class="d-flex align-items-center gap-2 gap-md-3">
         <div class="text-end">
             <div class="fw-bold small" style="color: #1a1a1a;"><?= htmlspecialchars($_SESSION['username'] ?? 'User'); ?></div>

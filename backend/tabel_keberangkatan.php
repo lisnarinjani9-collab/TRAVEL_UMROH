@@ -1,42 +1,39 @@
 <?php
-require_once "connection.php";
+include "connection.php";
 require_once "classes/Auth.php";
-
-$db = (new Database())->getConnection();
-$auth = new Auth($db);
-$auth->checkRole(['admin', 'petugas']);
 
 $userRole = $_SESSION['role'] ?? '';
 
-$jadwal = [];
-$errorMessage = "";
+// Menggunakan koneksi PDO dari class Database di connection.php
+$database = new Database();
+$db = $database->getConnection();
 
-try {
-    // Kueri Utama dengan pengurutan berdasarkan ID jika nama kolom tanggal bervariasi
-    $query = "SELECT jk.*, 
-                     pk.nama_paket,
-                     COALESCE(pk.jenis, pk.tipe, 'Haji/Umroh') AS jenis_layanan
-              FROM jadwal_keberangkatan jk
-              LEFT JOIN paket pk ON jk.paket_id = pk.id
-              ORDER BY jk.id DESC";
+// Query mengambil data keberangkatan beserta nama paketnya
+$queryKeberangkatan = "SELECT 
+        keberangkatan.*, 
+        paket.nama_paket 
+    FROM keberangkatan 
+    JOIN paket ON keberangkatan.paket_id = paket.id 
+    ORDER BY keberangkatan.tanggal_berangkat ASC";
 
-    $stmt = $db->prepare($query);
-    $stmt->execute();
-    $jadwal = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    // Kueri Fallback jika nama tabel menggunakan 'keberangkatan'
-    try {
-        $queryFallback = "SELECT jk.*, 
-                                 pk.nama_paket,
-                                 'Haji/Umroh' AS jenis_layanan
-                          FROM keberangkatan jk
-                          LEFT JOIN paket pk ON jk.paket_id = pk.id
-                          ORDER BY jk.id DESC";
-        $stmt = $db->prepare($queryFallback);
-        $stmt->execute();
-        $jadwal = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $ex) {
-        $errorMessage = "Terjadi kesalahan saat mengambil jadwal keberangkatan: " . $ex->getMessage();
+$stmt = $db->prepare($queryKeberangkatan);
+$stmt->execute();
+
+// Ambil semua data keberangkatan ke dalam array
+$keberangkatanList = $stmt->fetchAll();
+
+// Hitung total statistik
+$totalJadwal = count($keberangkatanList);
+$totalMendatang = 0;
+$totalSelesai = 0;
+$today = strtotime(date('Y-m-d'));
+
+foreach ($keberangkatanList as $k) {
+    $tglBerangkat = strtotime($k['tanggal_berangkat'] ?? '');
+    if ($tglBerangkat && $tglBerangkat >= $today) {
+        $totalMendatang++;
+    } else {
+        $totalSelesai++;
     }
 }
 
@@ -44,6 +41,7 @@ include "components/header.php";
 include "components/sidebar.php";
 ?>
 
+<!-- Import Google Fonts & Icons -->
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
@@ -51,6 +49,7 @@ include "components/sidebar.php";
         --primary-emerald: #064e3b;
         --secondary-emerald: #047857;
         --accent-gold: #d97706;
+        --light-gold: #fef3c7;
         --bg-modern: #f8fafc;
     }
 
@@ -59,21 +58,76 @@ include "components/sidebar.php";
         background-color: var(--bg-modern);
     }
 
-    .icon-header-box {
+    /* Stat Cards Modern */
+    .stat-card-paket {
+        border-radius: 20px;
+        border: 1px solid #e2e8f0;
+        background: #ffffff;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card-paket:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.06) !important;
+    }
+
+    .stat-card-paket::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+    }
+
+    .stat-card-paket.total::before {
+        background: var(--primary-emerald);
+    }
+
+    .stat-card-paket.haji::before {
+        background: #0284c7;
+    }
+
+    .stat-card-paket.umroh::before {
+        background: #10b981;
+    }
+
+    .icon-box-p {
         width: 52px;
         height: 52px;
         border-radius: 14px;
-        background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.35rem;
     }
 
-    .table-card {
+    /* Styling Table Modern */
+    .custom-table-card {
         border-radius: 20px;
         border: 1px solid #e2e8f0;
-        width: 100%;
+    }
+
+    .table-modern thead th {
+        background-color: #f8fafc;
+        color: #64748b;
+        font-weight: 700;
+        font-size: 0.75rem;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        border-bottom: 2px solid #e2e8f0;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .table-modern tbody tr {
+        transition: all 0.2s ease;
+    }
+
+    .table-modern tbody tr:hover {
+        background-color: rgba(241, 245, 249, 0.5);
     }
 
     .btn-gold {
@@ -83,6 +137,7 @@ include "components/sidebar.php";
         border-radius: 12px;
         font-weight: 600;
         transition: all 0.3s ease;
+        text-decoration: none;
     }
 
     .btn-gold:hover {
@@ -91,12 +146,47 @@ include "components/sidebar.php";
         box-shadow: 0 8px 15px rgba(217, 119, 6, 0.3);
     }
 
-    .table th {
-        font-size: 0.825rem;
-        font-weight: 700;
-        color: #334155;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    .action-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        border: none;
+        text-decoration: none;
+    }
+
+    .action-btn-view {
+        background-color: #fef3c7;
+        color: #d97706;
+    }
+
+    .action-btn-view:hover {
+        background-color: #d97706;
+        color: #ffffff;
+    }
+
+    /* Tombol Edit - Diubah ke Warna Biru */
+    .action-btn-edit {
+        background-color: #e0f2fe;
+        color: #0284c7;
+    }
+
+    .action-btn-edit:hover {
+        background-color: #0284c7;
+        color: #ffffff;
+    }
+
+    .action-btn-delete {
+        background-color: #fee2e2;
+        color: #ef4444;
+    }
+
+    .action-btn-delete:hover {
+        background-color: #ef4444;
+        color: #ffffff;
     }
 </style>
 
@@ -104,132 +194,234 @@ include "components/sidebar.php";
     <?php include "components/topbar.php"; ?>
 
     <div class="content-body p-4">
-        <!-- Header Halaman -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <!-- Header Halaman Modern -->
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
             <div class="d-flex align-items-center">
-                <div class="icon-header-box text-white me-3 shadow-sm">
-                    <i class="fas fa-plane-departure"></i>
+                <div class="icon-box-p text-white me-3 shadow-sm" style="background: linear-gradient(135deg, #064e3b 0%, #047857 100%);">
+                    <i class="fas fa-calendar-alt"></i>
                 </div>
                 <div>
                     <h3 class="fw-extrabold text-dark mb-0">Jadwal Keberangkatan</h3>
-                    <p class="mb-0 text-muted small">Kelola tanggal keberangkatan, maskapai, dan kuota penerbangan jamaah</p>
+                    <p class="mb-0 text-muted small">Kelola dan pantau seluruh jadwal keberangkatan Jamaah Umroh & Haji.</p>
                 </div>
             </div>
-            
-            <a href="form_tambah_jadwal.php" class="btn btn-gold px-4 py-2.5 shadow-sm d-flex align-items-center gap-2">
-                <i class="fas fa-plus"></i> Tambah Jadwal
-            </a>
+
+            <!-- Diarahkan ke file baru tambah_jadwal.php (Hanya Admin) -->
+            <?php if ($userRole === 'admin'): ?>
+                <a href="form_tambah_jadwal.php" class="btn btn-gold px-4 py-2.5 shadow-sm d-flex align-items-center gap-2">
+                    <i class="fas fa-plus"></i> Tambah Jadwal
+                </a>
+            <?php endif; ?>
         </div>
 
-        <?php if (!empty($errorMessage)): ?>
-            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
-                <i class="fas fa-exclamation-triangle me-2"></i> <?= htmlspecialchars($errorMessage); ?>
+        <!-- Ringkasan Stats Modern -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-4">
+                <div class="card stat-card-paket total shadow-sm p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold d-block mb-1">Total Jadwal</span>
+                            <h3 class="fw-bold text-dark mb-0"><?= $totalJadwal; ?></h3>
+                        </div>
+                        <div class="icon-box-p text-emerald" style="background-color: rgba(6, 78, 59, 0.1); color: var(--primary-emerald);">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-        <?php endif; ?>
+            <div class="col-md-4">
+                <div class="card stat-card-paket haji shadow-sm p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold d-block mb-1">Mendatang</span>
+                            <h3 class="fw-bold text-dark mb-0"><?= $totalMendatang; ?></h3>
+                        </div>
+                        <div class="icon-box-p bg-info bg-opacity-10 text-info">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stat-card-paket umroh shadow-sm p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="text-muted small fw-semibold d-block mb-1">Selesai</span>
+                            <h3 class="fw-bold text-dark mb-0"><?= $totalSelesai; ?></h3>
+                        </div>
+                        <div class="icon-box-p bg-success bg-opacity-10 text-success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <!-- Table Card Container -->
-        <div class="card table-card border-0 shadow-sm bg-white">
-            <div class="card-body p-4 p-md-5">
-                <div class="d-flex justify-content-between align-items-center mb-4">
+        <!-- Table Card Container Modern -->
+        <div class="card custom-table-card border-0 shadow-sm bg-white w-100">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <h5 class="fw-bold text-dark mb-1">Daftar Jadwal Penerbangan</h5>
-                        <p class="text-muted small mb-0">Informasi tanggal estimasi keberangkatan dan kepulangan jamaah</p>
+                        <h5 class="fw-bold text-dark mb-1">Daftar Keberangkatan</h5>
+                        <p class="mb-0 small text-muted">Jadwal resmi keberangkatan dan kepulangan jamaah</p>
                     </div>
                     <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
-                        <?= count($jadwal); ?> Jadwal Terdaftar
+                        <?= $totalJadwal; ?> Total Jadwal
                     </span>
                 </div>
 
                 <div class="table-responsive">
-                    <table class="table table-borderless align-middle mb-0">
+                    <table class="table table-modern align-middle mb-0">
                         <thead>
-                            <tr class="border-bottom">
-                                <th class="pb-3 ps-2" style="width: 50px;">NO</th>
-                                <th class="pb-3">NAMA PAKET & JENIS</th>
-                                <th class="pb-3">TGL KEBERANGKATAN</th>
-                                <th class="pb-3">TGL KEPULANGAN</th>
-                                <th class="pb-3">MASKAPAI / EMBARKASI</th>
-                                <th class="pb-3 text-center">STATUS</th>
-                                <th class="pb-3 text-center" style="width: 120px;">ACTION</th>
+                            <tr>
+                                <th class="ps-3" style="width: 60px;">NO</th>
+                                <th>NAMA PAKET</th>
+                                <th>TANGGAL KEBERANGKATAN</th>
+                                <th>TANGGAL KEPULANGAN</th>
+                                <th>MASKAPAI</th>
+                                <th>EMBARKASI</th>
+                                <th class="text-center">KUOTA</th>
+                                <th class="text-center">STATUS</th>
+                                <th class="text-center" style="width: 130px;">AKSI</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (count($jadwal) > 0): ?>
-                                <?php $no = 1; foreach ($jadwal as $row): ?>
-                                <?php 
-                                    // Pengecekan variasi nama kolom keberangkatan
-                                    $tglVal = $row['tgl_keberangkatan'] ?? $row['tanggal_keberangkatan'] ?? $row['tanggal'] ?? null;
-                                    $tglBerangkat = $tglVal ? strtotime($tglVal) : null;
-                                    $today = strtotime('today');
+                            <?php 
+                            if ($totalJadwal > 0) :
+                                $no = 1;
+                                foreach ($keberangkatanList as $row) : 
+                                    $idJadwal = $row['id'];
+                                    $tglBerangkatStr = $row['tanggal_berangkat'] ?? $row['tgl_keberangkatan'] ?? '';
+                                    $tglPulangStr = $row['tanggal_pulang'] ?? $row['tgl_kepulangan'] ?? '';
                                     
-                                    if ($tglBerangkat && $tglBerangkat >= $today) {
-                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px;"><i class="fas fa-clock me-1"></i> Mendatang</span>';
+                                    $tglKeberangkatan = strtotime($tglBerangkatStr);
+                                    
+                                    // Penentuan status berdasarkan tanggal keberangkatan
+                                    if ($tglKeberangkatan && $tglKeberangkatan >= $today) {
+                                        $statusText = 'Mendatang';
+                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px; font-weight: 600;"><i class="fas fa-clock me-1"></i> Mendatang</span>';
                                     } else {
-                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #d1fae5; color: #047857; font-size: 11px;"><i class="fas fa-check-circle me-1"></i> Selesai</span>';
+                                        $statusText = 'Selesai';
+                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #d1fae5; color: #047857; font-size: 11px; font-weight: 600;"><i class="fas fa-check-circle me-1"></i> Selesai</span>';
                                     }
-
-                                    // Pengecekan variasi nama kolom kepulangan
-                                    $tglPulangVal = $row['tgl_kepulangan'] ?? $row['tanggal_kepulangan'] ?? null;
-                                ?>
+                            ?>
                                 <tr class="border-bottom">
-                                    <td class="ps-2">
-                                        <div class="d-flex align-items-center justify-content-center rounded-3 fw-bold text-muted" 
-                                             style="width: 32px; height: 32px; background-color: #f1f5f9; font-size: 13px;">
-                                            <?= $no++; ?>
-                                        </div>
+                                    <td class="ps-3">
+                                        <span class="fw-bold text-secondary small">
+                                            <?= sprintf("%02d", $no++); ?>
+                                        </span>
                                     </td>
-
-                                    <td>
-                                        <div class="fw-bold text-dark" style="font-size: 14px;"><?= htmlspecialchars($row['nama_paket'] ?? 'Paket Umum'); ?></div>
-                                        <div class="text-muted small" style="font-size: 12px;">
-                                            <span class="badge px-2 py-1" style="background-color: #f1f5f9; color: #475569;">
-                                                <?= htmlspecialchars($row['jenis_layanan']); ?>
-                                            </span>
-                                        </div>
+                                    <td class="py-3">
+                                        <span class="fw-bold text-dark fs-6"><?= htmlspecialchars($row['nama_paket']); ?></span>
                                     </td>
-
-                                    <td class="fw-bold" style="color: var(--secondary-emerald); font-size: 13px;">
-                                        <i class="far fa-calendar-alt me-1 text-muted"></i>
-                                        <?= $tglVal ? date('d M Y', strtotime($tglVal)) : '-'; ?>
+                                    <td class="py-3 text-secondary small">
+                                        <i class="far fa-calendar-alt me-1 text-primary"></i>
+                                        <?= !empty($tglBerangkatStr) ? date('d M Y', strtotime($tglBerangkatStr)) : '-'; ?>
                                     </td>
-
-                                    <td class="text-secondary small fw-medium" style="font-size: 13px;">
-                                        <?= !empty($tglPulangVal) ? date('d M Y', strtotime($tglPulangVal)) : '<span class="text-muted fst-italic">-</span>'; ?>
+                                    <td class="py-3 text-secondary small">
+                                        <i class="far fa-calendar-check me-1 text-success"></i>
+                                        <?= !empty($tglPulangStr) ? date('d M Y', strtotime($tglPulangStr)) : '-'; ?>
                                     </td>
-
-                                    <td>
-                                        <div class="fw-semibold text-dark" style="font-size: 13px;">
-                                            <i class="fas fa-plane me-1" style="color: var(--accent-gold);"></i>
-                                            <?= htmlspecialchars($row['maskapai'] ?? 'Saudia Airlines'); ?>
-                                        </div>
-                                        <div class="text-muted small" style="font-size: 11px;">
-                                            Embarkasi: <?= htmlspecialchars($row['embarkasi'] ?? 'Jakarta (CGK)'); ?>
-                                        </div>
+                                    <td class="py-3 text-secondary small fw-medium"><?= htmlspecialchars($row['maskapai']); ?></td>
+                                    <td class="py-3 text-secondary small fw-medium"><?= htmlspecialchars($row['embarkasi']); ?></td>
+                                    <td class="py-3 text-center">
+                                        <span class="badge bg-light text-dark border px-2.5 py-1.5 rounded-2 fw-medium">
+                                            <i class="fas fa-users me-1 text-muted"></i><?= htmlspecialchars($row['kuota_penerbangan'] ?? $row['kuota'] ?? '0'); ?> Jamaah
+                                        </span>
                                     </td>
-
-                                    <td class="text-center">
+                                    <td class="py-3 text-center">
                                         <?= $statusBadge; ?>
                                     </td>
-
                                     <td class="text-center">
-                                        <div class="d-flex justify-content-center gap-1">
-                                            <a href="form_update_jadwal.php?id=<?= $row['id']; ?>" class="btn btn-sm d-flex align-items-center justify-content-center rounded-3 border-0" style="background-color: #e0f2fe; color: #0284c7; width: 34px; height: 34px;" title="Edit">
-                                                <i class="fas fa-edit" style="font-size: 13px;"></i>
+                                        <div class="d-flex justify-content-center gap-2">
+                                            <!-- Tombol Lihat (Mata) dengan Modal -->
+                                            <button class="action-btn action-btn-view" title="Detail Data" data-bs-toggle="modal" data-bs-target="#modalDetailJadwal<?= $idJadwal; ?>">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+
+                                            <!-- Tombol Edit mengarah ke update_jadwal.php -->
+                                            <a href="form_update_jadwal.php?id=<?= $idJadwal; ?>" class="action-btn action-btn-edit" title="Edit">
+                                                <i class="fas fa-edit"></i>
                                             </a>
+
+                                            <!-- Tombol Hapus mengarah ke proses_delete_jadwal.php (Hanya Admin) -->
                                             <?php if ($userRole === 'admin'): ?>
-                                            <a href="hapus_jadwal.php?id=<?= $row['id']; ?>" class="btn btn-sm d-flex align-items-center justify-content-center rounded-3 border-0" style="background-color: #fee2e2; color: #ef4444; width: 34px; height: 34px;" onclick="return confirm('Yakin ingin menghapus jadwal ini?');" title="Hapus">
-                                                <i class="fas fa-trash-alt" style="font-size: 13px;"></i>
-                                            </a>
+                                                <a href="process/proses_delete_jadwal.php?id=<?= $idJadwal; ?>" class="action-btn action-btn-delete" title="Hapus" onclick="return confirm('Apakah Anda yakin ingin menghapus jadwal ini?');">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </a>
                                             <?php endif; ?>
                                         </div>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
+
+                                <!-- Modal Detail Jadwal (Ikon Mata) -->
+                                <div class="modal fade" id="modalDetailJadwal<?= $idJadwal; ?>" tabindex="-1" aria-labelledby="modalDetailLabel<?= $idJadwal; ?>" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                                            <div class="modal-header border-bottom-0 pb-0 pt-4 px-4">
+                                                <h5 class="modal-title fw-bold text-dark" id="modalDetailLabel<?= $idJadwal; ?>">
+                                                    <i class="fas fa-info-circle me-2 text-primary"></i>Detail Keberangkatan
+                                                </h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body p-4">
+                                                <div class="bg-light p-3 rounded-3 mb-3">
+                                                    <span class="text-muted small d-block mb-1">Nama Paket</span>
+                                                    <h6 class="fw-bold text-dark mb-0"><?= htmlspecialchars($row['nama_paket']); ?></h6>
+                                                </div>
+                                                <div class="row g-3">
+                                                    <div class="col-6">
+                                                        <div class="p-3 border rounded-3">
+                                                            <span class="text-muted small d-block mb-1">Keberangkatan</span>
+                                                            <strong class="text-dark small"><i class="far fa-calendar-alt text-primary me-1"></i><?= !empty($tglBerangkatStr) ? date('d M Y', strtotime($tglBerangkatStr)) : '-'; ?></strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="p-3 border rounded-3">
+                                                            <span class="text-muted small d-block mb-1">Kepulangan</span>
+                                                            <strong class="text-dark small"><i class="far fa-calendar-check text-success me-1"></i><?= !empty($tglPulangStr) ? date('d M Y', strtotime($tglPulangStr)) : '-'; ?></strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="p-3 border rounded-3">
+                                                            <span class="text-muted small d-block mb-1">Maskapai</span>
+                                                            <strong class="text-dark small"><?= htmlspecialchars($row['maskapai']); ?></strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="p-3 border rounded-3">
+                                                            <span class="text-muted small d-block mb-1">Embarkasi</span>
+                                                            <strong class="text-dark small"><?= htmlspecialchars($row['embarkasi']); ?></strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="p-3 border rounded-3">
+                                                            <span class="text-muted small d-block mb-1">Kuota</span>
+                                                            <strong class="text-dark small"><?= htmlspecialchars($row['kuota_penerbangan'] ?? $row['kuota'] ?? '0'); ?> Jamaah</strong>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <div class="p-3 border rounded-3">
+                                                            <span class="text-muted small d-block mb-1">Status</span>
+                                                            <strong class="text-dark small"><?= $statusText; ?></strong>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer border-top-0 pt-0 pb-4 px-4">
+                                                <button type="button" class="btn btn-secondary w-100 rounded-3 fw-semibold" data-bs-dismiss="modal">Tutup</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php 
+                                endforeach;
+                            else : 
+                            ?>
                                 <tr>
-                                    <td colspan="7" class="text-center py-5 text-muted">
-                                        <i class="fas fa-calendar-times fa-2x mb-3 d-block opacity-25"></i>
-                                        Belum ada jadwal keberangkatan yang ditambahkan.
+                                    <td colspan="9" class="text-center py-5 text-muted">
+                                        <i class="fas fa-calendar-times fa-3x mb-3 text-light-gray d-block"></i>
+                                        Belum ada data jadwal keberangkatan.
                                     </td>
                                 </tr>
                             <?php endif; ?>
@@ -242,6 +434,6 @@ include "components/sidebar.php";
 </div>
 
 <?php 
-include "components/footer.php";
-include "components/bottom.php"; 
+include "components/footer.php"; 
+include "components/bottom.php";
 ?>

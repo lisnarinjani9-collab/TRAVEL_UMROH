@@ -97,11 +97,11 @@ include "components/sidebar.php";
                                         </td>
                                         <td class="px-3 text-center">
                                             <!-- Action Button Hapus bergaya Icon Box -->
-                                            <a href="proses_hapus_user.php?id=<?= $petugas['id']; ?>" 
-                                               class="btn btn-sm p-2 d-inline-flex align-items-center justify-content-center" 
-                                               style="background-color: #fef2f2; color: #dc2626; border-radius: 8px; width: 34px; height: 34px; border: none;"
-                                               title="Hapus Petugas"
-                                               onclick="return confirm('Apakah Anda yakin ingin menghapus petugas ini?');">
+                                            <a href="process/proses_hapus_user.php?id=<?= $petugas['id']; ?>" 
+                                            class="btn btn-sm p-2 d-inline-flex align-items-center justify-content-center" 
+                                            style="background-color: #fef2f2; color: #dc2626; border-radius: 8px; width: 34px; height: 34px; border: none;"
+                                            title="Hapus Petugas"
+                                            onclick="return confirm('Apakah Anda yakin ingin menghapus petugas ini?');">
                                                 <i class="fas fa-trash-alt"></i>
                                             </a>
                                         </td>
