@@ -203,9 +203,11 @@ include "components/sidebar.php";
                 </div>
             </div>
 
-            <a href="form_tambah_paket.php" class="btn btn-gold px-4 py-2.5 shadow-sm d-flex align-items-center gap-2">
-                <i class="fas fa-plus"></i> Add Paket Baru
-            </a>
+            <?php if ($userRole === 'admin'): ?>
+                <a href="form_tambah_paket.php" class="btn btn-gold px-4 py-2.5 shadow-sm d-flex align-items-center gap-2">
+                    <i class="fas fa-plus"></i> Add Paket Baru
+                </a>
+            <?php endif; ?>
         </div>
 
         <!-- Ringkasan Stats Modern -->
@@ -371,7 +373,7 @@ include "components/sidebar.php";
 
                                                 <!-- Tombol Hapus -->
                                                 <?php if ($userRole === 'admin'): ?>
-                                                    <a href="hapus_paket.php?id=<?= $row['id']; ?>"
+                                                    <a href="delete_paket.php?id=<?= $row['id']; ?>"
                                                         class="action-btn action-btn-delete"
                                                         onclick="return confirm('Yakin ingin menghapus paket ini?');"
                                                         title="Hapus Paket">
@@ -382,7 +384,7 @@ include "components/sidebar.php";
                                         </td>
                                     </tr>
 
-                                    <!-- Modal Detail Paket (Tombol X di-remove) -->
+                                    <!-- Modal Detail Paket -->
                                     <div class="modal fade" id="modalDetail<?= $row['id']; ?>" tabindex="-1"
                                         aria-labelledby="modalDetailLabel<?= $row['id']; ?>" aria-hidden="true">
                                         <div class="modal-dialog modal-dialog-centered modal-lg">

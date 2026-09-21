@@ -10,10 +10,10 @@ $auth->checkRole(['admin']);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
-    $role     = trim($_POST['role'] ?? '');
+    $role     = 'petugas';
 
     // 1. Validasi Input Tidak Boleh Kosong
-    if (empty($username) || empty($password) || empty($role)) {
+   if (empty($username) || empty($password)) {
         echo "<script>
             alert('Semua field wajib diisi!');
             window.history.back();

@@ -10,12 +10,13 @@ $role = $_SESSION['role'] ?? '';
 <style>
     .sidebar {
         width: 260px;
-        min-height: 100vh;
         background-color: #f4efe6 !important;
         color: #2c2825;
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
+        align-self: stretch; /* Supaya tinggi sejajar dengan app-container */
+        z-index: 1050;
     }
 
     .sidebar-brand {
@@ -128,16 +129,6 @@ $role = $_SESSION['role'] ?? '';
                     <i class="fas fa-users"></i> Data Jamaah
                 </a>
             </li>
-            <li>
-                <a href="tabel_paket.php" class="<?= ($current_page == 'tabel_paket.php' || $current_page == 'form_tambah_paket.php' || $current_page == 'form_update_paket.php') ? 'active' : ''; ?>">
-                    <i class="fas fa-box"></i> Paket Haji/Umroh
-                </a>
-            </li>
-            <li>
-                <a href="tabel_pendaftaran.php" class="<?= $current_page == 'tabel_pendaftaran.php' ? 'active' : ''; ?>">
-                    <i class="fas fa-clipboard-list"></i> Pendaftaran
-                </a>
-            </li>
 
             <?php if ($role === 'admin'): ?>
                 <li>
@@ -152,6 +143,17 @@ $role = $_SESSION['role'] ?? '';
                     </a>
                 </li>
             <?php endif; ?>
+            
+            <li>
+                <a href="tabel_paket.php" class="<?= ($current_page == 'tabel_paket.php' || $current_page == 'form_tambah_paket.php' || $current_page == 'form_update_paket.php') ? 'active' : ''; ?>">
+                    <i class="fas fa-box"></i> Paket Haji/Umroh
+                </a>
+            </li>
+            <li>
+                <a href="tabel_pendaftaran.php" class="<?= $current_page == 'tabel_pendaftaran.php' ? 'active' : ''; ?>">
+                    <i class="fas fa-clipboard-list"></i> Pendaftaran
+                </a>
+            </li>
 
             <li class="sidebar-menu-title">TRANSAKSI & LAPORAN</li>
             <?php if ($role === 'admin'): ?>

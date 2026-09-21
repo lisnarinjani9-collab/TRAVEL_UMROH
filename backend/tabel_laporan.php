@@ -1,88 +1,20 @@
 <?php
-require_once "connection.php";
+include "connection.php";
 require_once "classes/Auth.php";
 
-$db = (new Database())->getConnection();
-$auth = new Auth($db);
-$auth->checkRole(['admin', 'petugas']);
+$conn = mysqli_connect("localhost", "root", "", "travel_haji_umroh");
 
-$laporanData = [];
-$totalPendaftaran = 0;
-$pendaftaranLunas = 0;
-$totalPembayaranMasuk = 0;
-$errorMessage = "";
+$totalPendaftaran = mysqli_query($conn, "SELECT COUNT(*) AS total FROM pendaftaran");
+$dataPendaftar = mysqli_fetch_assoc($totalPendaftaran);
 
-try {
-    // 1. Ambil data gabungan laporan tanpa membuat tabel laporan baru
-    $queryLaporan = "SELECT 
-                        pd.id AS pendaftaran_id,
-                        j.nama_lengkap AS nama_jamaah,
-                        j.nik,
-                        pk.nama_paket,
-                        pk.harga AS total_harga,
-                        pd.created_at AS tgl_daftar,
-                        COALESCE(
-                            (SELECT SUM(COALESCE(pm.jumlah_bayar, pm.nominal, pm.bayar, pm.jumlah, 0)) 
-                             FROM pembayaran pm 
-                             WHERE pm.pendaftaran_id = pd.id), 0
-                        ) AS total_dibayar,
-                        pd.status_pembayaran
-                     FROM pendaftaran pd
-                     LEFT JOIN jamaah j ON  pd.jamaah_id = j.id
-                     LEFT JOIN paket pk ON pd.paket_id = pk.id
-                     ORDER BY pd.id DESC";
+$totalLunas = mysqli_query($conn, "SELECT COUNT(*) AS total FROM pembayaran WHERE status = 'Valid'  ");
+$dataLunas = mysqli_fetch_assoc($totalLunas);
 
-    $stmt = $db->prepare($queryLaporan);
-    $stmt->execute();
-    $laporanData = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$totalPembayaran = mysqli_query($conn, "SELECT SUM(nominal) AS totalBayar FROM pembayaran");
+$dataPembayaran = mysqli_fetch_assoc($totalPembayaran);
 
-    // 2. Hitung Card Ringkasan Laporan
-    $totalPendaftaran = count($laporanData);
-    
-    foreach ($laporanData as $row) {
-        $totalPembayaranMasuk += (float)$row['total_dibayar'];
-        
-        $status = strtolower($row['status_pembayaran'] ?? '');
-        $totalHarga = (float)($row['total_harga'] ?? 0);
-        $totalDibayar = (float)($row['total_dibayar'] ?? 0);
-        
-        if ($status === 'lunas' || ($totalHarga > 0 && $totalDibayar >= $totalHarga)) {
-            $pendaftaranLunas++;
-        }
-    }
-
-} catch (PDOException $e) {
-    // Fallback Query sederhanakan jika struktur tabel pembayaran berbeda
-    try {
-        $querySimple = "SELECT 
-                            pd.id AS pendaftaran_id,
-                            COALESCE(j.nama_lengkap, 'Jamaah') AS nama_jamaah,
-                            COALESCE(j.nik, '-') AS nik,
-                            COALESCE(pk.nama_paket, 'Paket Travel') AS nama_paket,
-                            COALESCE(pk.harga, 0) AS total_harga,
-                            COALESCE(pd.created_at, pd.tanggal_daftar, CURRENT_DATE) AS tgl_daftar,
-                            COALESCE(pd.total_bayar, pd.jumlah_bayar, 0) AS total_dibayar,
-                            COALESCE(pd.status_pembayaran, pd.status, 'Pending') AS status_pembayaran
-                        FROM pendaftaran pd
-                        LEFT JOIN jamaah j ON pd.jamaah_id = j.id
-                        LEFT JOIN paket pk ON pd.paket_id = pk.id
-                        ORDER BY pd.id DESC";
-
-        $stmt = $db->prepare($querySimple);
-        $stmt->execute();
-        $laporanData = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $totalPendaftaran = count($laporanData);
-        foreach ($laporanData as $row) {
-            $totalPembayaranMasuk += (float)$row['total_dibayar'];
-            if (strtolower($row['status_pembayaran']) === 'lunas') {
-                $pendaftaranLunas++;
-            }
-        }
-    } catch (PDOException $ex) {
-        $errorMessage = "Terjadi kesalahan saat mengambil data laporan: " . $ex->getMessage();
-    }
-}
+$laporan = mysqli_query($conn, "SELECT jamaah.nama_lengkap, paket.nama_paket, pendaftaran.tgl_daftar, paket.harga, pembayaran.nominal, pembayaran.status
+FROM pendaftaran JOIN paket ON pendaftaran.paket_id = paket.id JOIN jamaah ON pendaftaran.jamaah_id LEFT JOIN pembayaran ON jamaah.id = pembayaran.jamaah_id");
 
 include "components/header.php";
 include "components/sidebar.php";
@@ -185,11 +117,6 @@ include "components/sidebar.php";
             </button>
         </div>
 
-        <?php if (!empty($errorMessage)): ?>
-            <div class="alert alert-danger border-0 shadow-sm rounded-3 mb-4">
-                <i class="fas fa-exclamation-triangle me-2"></i> <?= htmlspecialchars($errorMessage); ?>
-            </div>
-        <?php endif; ?>
 
         <!-- Stat Cards Container -->
         <div class="row g-3 mb-4">
@@ -198,7 +125,7 @@ include "components/sidebar.php";
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <p class="text-muted small fw-semibold mb-1">Total Pendaftaran</p>
-                            <h3 class="fw-bold text-dark mb-0"><?= number_format($totalPendaftaran); ?></h3>
+                            <h3 class="fw-bold text-dark mb-0"><?= ($dataPendaftar)['total']; ?></h3>
                         </div>
                         <div class="stat-icon bg-light text-primary">
                             <i class="fas fa-clipboard-list"></i>
@@ -212,7 +139,7 @@ include "components/sidebar.php";
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <p class="text-muted small fw-semibold mb-1">Pendaftaran Lunas</p>
-                            <h3 class="fw-bold text-success mb-0"><?= number_format($pendaftaranLunas); ?></h3>
+                            <h3 class="fw-bold text-success mb-0"><?= ($dataLunas)['total']; ?></h3>
                         </div>
                         <div class="stat-icon bg-success bg-opacity-10 text-success">
                             <i class="fas fa-check-circle"></i>
@@ -226,7 +153,7 @@ include "components/sidebar.php";
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <p class="text-muted small fw-semibold mb-1">Total Pembayaran Masuk</p>
-                            <h3 class="fw-bold text-dark mb-0">Rp <?= number_format($totalPembayaranMasuk, 0, ',', '.'); ?></h3>
+                            <h3 class="fw-bold text-dark mb-0">Rp <?= ($dataPembayaran)['totalBayar']; ?></h3>
                         </div>
                         <div class="stat-icon bg-warning bg-opacity-10 text-warning">
                             <i class="fas fa-wallet"></i>
@@ -245,7 +172,7 @@ include "components/sidebar.php";
                         <p class="text-muted small mb-0">Rekapitulasi data gabungan jamaah, paket, dan status pembayaran</p>
                     </div>
                     <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
-                        <?= count($laporanData); ?> Data Laporan
+                       Data Laporan
                     </span>
                 </div>
 
@@ -264,56 +191,39 @@ include "components/sidebar.php";
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (count($laporanData) > 0): ?>
-                                <?php $no = 1; foreach ($laporanData as $row): ?>
-                                <?php 
-                                    $harga = (float)($row['total_harga'] ?? 0);
-                                    $dibayar = (float)($row['total_dibayar'] ?? 0);
-                                    $statusRaw = strtolower($row['status_pembayaran'] ?? '');
-
-                                    if ($statusRaw === 'lunas' || ($harga > 0 && $dibayar >= $harga)) {
-                                        $badgeStatus = '<span class="badge rounded-pill px-3 py-1 bg-success bg-opacity-10 text-success fw-semibold"><i class="fas fa-check-circle me-1"></i> Lunas</span>';
-                                    } elseif ($dibayar > 0) {
-                                        $badgeStatus = '<span class="badge rounded-pill px-3 py-1 bg-warning bg-opacity-10 text-warning fw-semibold"><i class="fas fa-clock me-1"></i> Cicilan</span>';
-                                    } else {
-                                        $badgeStatus = '<span class="badge rounded-pill px-3 py-1 bg-danger bg-opacity-10 text-danger fw-semibold"><i class="fas fa-times-circle me-1"></i> Belum Bayar</span>';
-                                    }
-                                ?>
+                            <?php $i = 1; ?>
+                            <?php while ($data = mysqli_fetch_assoc($laporan)) : ?>
                                 <tr class="border-bottom">
                                     <td class="ps-2">
-                                        <div class="d-flex align-items-center justify-content-center rounded-3 fw-bold text-muted" 
-                                             style="width: 32px; height: 32px; background-color: #f1f5f9; font-size: 13px;">
-                                            <?= $no++; ?>
-                                        </div>
+                                      <?= $i; ?>
                                     </td>
 
                                     <td>
-                                        <div class="fw-bold text-dark" style="font-size: 14px;"><?= htmlspecialchars($row['nama_jamaah'] ?? '-'); ?></div>
-                                        <div class="text-muted small" style="font-size: 12px;">NIK: <?= htmlspecialchars($row['nik'] ?? '-'); ?></div>
+                                        <?= $data['nama_lengkap']; ?>
                                     </td>
 
                                     <td class="fw-semibold text-secondary" style="font-size: 13px;">
-                                        <?= htmlspecialchars($row['nama_paket'] ?? 'Paket Umum'); ?>
+                                        <?= $data['nama_paket']; ?>
                                     </td>
 
                                     <td class="small text-muted" style="font-size: 13px;">
-                                        <?= !empty($row['tgl_daftar']) ? date('d M Y', strtotime($row['tgl_daftar'])) : '-'; ?>
+                                        <?= $data['tgl_daftar']; ?>
                                     </td>
 
                                     <td class="fw-bold text-dark" style="font-size: 13px;">
-                                        Rp <?= number_format($harga, 0, ',', '.'); ?>
+                                         <?= $data['harga']; ?>
                                     </td>
 
                                     <td class="fw-bold text-success" style="font-size: 13px;">
-                                        Rp <?= number_format($dibayar, 0, ',', '.'); ?>
+                                         <?= $data['nominal']; ?>
                                     </td>
 
                                     <td class="text-center">
-                                        <?= $badgeStatus; ?>
+                                        <?= $data['status']; ?>
                                     </td>
 
                                     <td class="text-center">
-                                        <a href="detail_pembayaran.php?id=<?= $row['pendaftaran_id']; ?>" 
+                                        <a href="" 
                                            class="btn btn-sm d-inline-flex align-items-center justify-content-center rounded-3 border-0" 
                                            style="background-color: #e0f2fe; color: #0284c7; width: 34px; height: 34px;" 
                                            title="Detail Pembayaran">
@@ -321,15 +231,8 @@ include "components/sidebar.php";
                                         </a>
                                     </td>
                                 </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
-                                <tr>
-                                    <td colspan="8" class="text-center py-5 text-muted">
-                                        <i class="fas fa-folder-open fa-3x mb-3 text-secondary opacity-50"></i>
-                                        <p class="mb-0">Belum ada data transaksi/laporan yang tersedia.</p>
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
+                                <?php $i++; ?>
+                            <?php endwhile; ?>
                         </tbody>
                     </table>
                 </div>

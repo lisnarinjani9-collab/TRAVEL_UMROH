@@ -180,14 +180,15 @@ include "components/sidebar.php";
                                             </div>
                                         </div>
 
-                                        <div class="mb-2">
-                                            <label class="form-label fw-bold text-secondary small">OPSI PEMBAYARAN</label>
-                                            <select name="opsi_bayar" class="form-select py-2.5 rounded-3" required>
-                                                <option value="Lunas">Pelunasan Langsung (Lunas)</option>
-                                                <option value="DP">Uang Muka / DP</option>
-                                            </select>
-                                        </div>
-                                    </div>
+<div class="mb-2">
+    <label class="form-label fw-bold text-secondary small">OPSI PEMBAYARAN</label>
+    <select name="opsi_bayar" class="form-select py-2.5 rounded-3" required>
+        <option value="" selected disabled hidden>-- Pilih Opsi Pembayaran --</option>
+        <option value="Lunas">Pelunasan Langsung (Lunas)</option>
+        <option value="DP">Uang Muka / DP</option>
+    </select>
+</div>
+                                    </div>  
                                     <div class="modal-footer border-top-0 pt-0">
                                         <button type="button" class="btn btn-light rounded-3 px-4" data-bs-dismiss="modal">Batal</button>
                                         <button type="submit" class="btn btn-gold rounded-3 px-4">Lanjutkan Pendaftaran</button>

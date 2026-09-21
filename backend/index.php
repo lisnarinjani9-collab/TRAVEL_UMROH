@@ -23,6 +23,12 @@ if ($role === 'jamaah') {
         $jamaah_id = $resJamaah['id'] ?? null;
     }
 
+    // Inisialisasi nilai default agar tidak undefined
+    $jadwalKeberangkatan = '0';
+    $namaPaketDiikuti   = 'Belum Terdaftar';
+    $totalPendaftaran    = 0;
+    $totalPembayaran     = 0;
+
     if ($jamaah_id) {
         // Query Total Pendaftaran Jamaah
         $stmtPendaftaran = $db->prepare("SELECT COUNT(*) as total FROM pendaftaran WHERE jamaah_id = ?");
@@ -33,6 +39,25 @@ if ($role === 'jamaah') {
         $stmtPembayaran = $db->prepare("SELECT COUNT(*) as total FROM pembayaran WHERE jamaah_id = ?");
         $stmtPembayaran->execute([$jamaah_id]);
         $totalPembayaran = $stmtPembayaran->fetch()['total'] ?? 0;
+
+        // Query Jadwal Keberangkatan Terdekat (Aktif)
+        $stmtJadwal = $db->prepare("
+            SELECT k.tanggal_berangkat, pkt.nama_paket 
+            FROM pendaftaran p 
+            LEFT JOIN keberangkatan k ON p.keberangkatan_id = k.id
+            JOIN paket pkt ON p.paket_id = pkt.id 
+            WHERE p.jamaah_id = ? AND p.status IN ('Berangkat', 'Proses', 'Menunggu') 
+            ORDER BY k.tanggal_berangkat ASC LIMIT 1
+        ");
+        $stmtJadwal->execute([$jamaah_id]);
+        $jadwalData = $stmtJadwal->fetch();
+
+        if (!empty($jadwalData['tanggal_berangkat'])) {
+            $jadwalKeberangkatan = date('d M Y', strtotime($jadwalData['tanggal_berangkat']));
+        }
+        if (!empty($jadwalData['nama_paket'])) {
+            $namaPaketDiikuti = $jadwalData['nama_paket'];
+        }
 
         // Database Anomali
 
@@ -53,7 +78,7 @@ if ($role === 'jamaah') {
     } else {
         $totalPendaftaran = 0;
         $totalPembayaran = 0;
-        $jadwalKeberangkatan = 'Belum Ada';
+        $jadwalKeberangkatan = '0';
         $namaPaketDiikuti = 'Belum Terdaftar';
     }
 } else {
@@ -309,7 +334,7 @@ include "components/sidebar.php";
                         </div>
                         <div class="mt-3 pt-3 border-top d-flex align-items-center justify-content-between text-muted small">
                             <span><i class="fas fa-check-circle text-warning me-1"></i> Layanan Aktif</span>
-                            <span class="fw-semibold text-dark">Hajj Program</span>
+                            <span class="fw-semibold text-dark">Haji Program</span>
                         </div>
                     </div>
                 </div>

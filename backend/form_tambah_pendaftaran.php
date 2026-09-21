@@ -23,11 +23,11 @@ $keberangkatanList = $stmtKeberangkatan->fetchAll(PDO::FETCH_ASSOC);
 
 // Proses Form Submit
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $jamaah_id        = $_POST['jamaah_id'] ?? '';
-    $paket_id         = $_POST['paket_id'] ?? '';
+    $jamaah_id        = htmlspecialchars($_POST)['jamaah_id'] ?? '';
+    $paket_id         = htmlspecialchars($_POST)['paket_id'] ?? '';
     $keberangkatan_id = !empty($_POST['keberangkatan_id']) ? $_POST['keberangkatan_id'] : null;
-    $tgl_daftar       = $_POST['tgl_daftar'] ?? date('Y-m-d');
-    $status           = $_POST['status'] ?? 'Menunggu';
+    $tgl_daftar       = htmlspecialchars($_POST)['tgl_daftar'] ?? date('Y-m-d');
+    $status           = htmlspecialchars($_POST)['status'] ?? 'Menunggu';
 
     if (empty($jamaah_id) || empty($paket_id)) {
         $errorMessage = "Jamaah dan Paket Wajib dipilih!";

@@ -31,17 +31,16 @@ try {
     $errorMessage = "Terjadi kesalahan saat mengambil data: " . $e->getMessage();
 }
 
-// Hitung statistik singkat
-$totalPendaftaran = count($pendaftaran);
-$totalLunas       = 0;
-$totalProses      = 0;
+// Hitung statistik pendaftaran & keberangkatan
+$totalPendaftaran     = count($pendaftaran);
+$sudahDijadwalkan    = 0;
+$belumDijadwalkan    = 0;
 
 foreach ($pendaftaran as $p) {
-    $st = strtolower($p['status'] ?? '');
-    if ($st === 'lunas') {
-        $totalLunas++;
+    if (!empty($p['tanggal_berangkat'])) {
+        $sudahDijadwalkan++;
     } else {
-        $totalProses++;
+        $belumDijadwalkan++;
     }
 }
 
@@ -85,21 +84,6 @@ include "components/sidebar.php";
     .stat-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05) !important;
-    }
-
-    .btn-gold {
-        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-        color: #ffffff !important;
-        border: none;
-        border-radius: 12px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-    }
-
-    .btn-gold:hover {
-        opacity: 0.95;
-        transform: translateY(-2px);
-        box-shadow: 0 8px 15px rgba(217, 119, 6, 0.3);
     }
 
     .table-card {
@@ -149,7 +133,7 @@ include "components/sidebar.php";
     <?php include "components/topbar.php"; ?>
 
     <div class="content-body p-4">
-        <!-- Header Halaman & Tombol Tambah -->
+        <!-- Header Halaman -->
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
             <div class="d-flex align-items-center">
                 <div class="icon-header-box text-white me-3 shadow-sm">
@@ -160,7 +144,6 @@ include "components/sidebar.php";
                     <p class="mb-0 text-muted small">Kelola transaksi pendaftaran porsi Haji dan Umroh</p>
                 </div>
             </div>
-            
         </div>
 
         <?php if (!empty($errorMessage)): ?>
@@ -169,14 +152,14 @@ include "components/sidebar.php";
             </div>
         <?php endif; ?>
 
-        <!-- Stat Cards Summary -->
+        <!-- Stat Cards Summary (Sudah Diperbarui) -->
         <div class="row g-3 mb-4">
             <div class="col-md-4">
                 <div class="card stat-card bg-white border-0 shadow-sm p-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
                             <span class="text-muted small fw-semibold">Total Pendaftaran</span>
-                            <h3 class="fw-bold text-dark mb-0 mt-1"><?= $totalPendaftaran; ?> <span class="fs-6 fw-normal text-muted">Transaksi</span></h3>
+                            <h3 class="fw-bold text-dark mb-0 mt-1"><?= $totalPendaftaran; ?> <span class="fs-6 fw-normal text-muted">Jamaah</span></h3>
                         </div>
                         <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="background-color: #f0fdf4; color: var(--secondary-emerald); width: 48px; height: 48px;">
                             <i class="fas fa-file-invoice fa-lg"></i>
@@ -188,11 +171,11 @@ include "components/sidebar.php";
                 <div class="card stat-card bg-white border-0 shadow-sm p-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <span class="text-muted small fw-semibold">Status Lunas</span>
-                            <h3 class="fw-bold text-dark mb-0 mt-1"><?= $totalLunas; ?> <span class="fs-6 fw-normal text-muted">Jamaah</span></h3>
+                            <span class="text-muted small fw-semibold">Sudah Dijadwalkan</span>
+                            <h3 class="fw-bold text-dark mb-0 mt-1"><?= $sudahDijadwalkan; ?> <span class="fs-6 fw-normal text-muted">Jamaah</span></h3>
                         </div>
-                        <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="background-color: #d1fae5; color: #059669; width: 48px; height: 48px;">
-                            <i class="fas fa-check-circle fa-lg"></i>
+                        <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="background-color: #e0f2fe; color: #0284c7; width: 48px; height: 48px;">
+                            <i class="fas fa-plane-departure fa-lg"></i>
                         </div>
                     </div>
                 </div>
@@ -201,10 +184,10 @@ include "components/sidebar.php";
                 <div class="card stat-card bg-white border-0 shadow-sm p-3">
                     <div class="d-flex align-items-center justify-content-between">
                         <div>
-                            <span class="text-muted small fw-semibold">Proses / Cicilan</span>
-                            <h3 class="fw-bold text-dark mb-0 mt-1"><?= $totalProses; ?> <span class="fs-6 fw-normal text-muted">Jamaah</span></h3>
+                            <span class="text-muted small fw-semibold">Belum Dijadwalkan</span>
+                            <h3 class="fw-bold text-dark mb-0 mt-1"><?= $belumDijadwalkan; ?> <span class="fs-6 fw-normal text-muted">Jamaah</span></h3>
                         </div>
-                        <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="background-color: #fef3c7; color: #d97706; width: 48px; height: 48px;">
+                        <div class="rounded-circle p-3 d-flex align-items-center justify-content-center" style="background-color: #fff7ed; color: #ea580c; width: 48px; height: 48px;">
                             <i class="fas fa-clock fa-lg"></i>
                         </div>
                     </div>
@@ -270,41 +253,37 @@ include "components/sidebar.php";
                                             <?php endif; ?>
                                         </td>
 
-<!-- Status Badge -->
-<td class="py-3">
-    <?php 
-        $st = strtolower($row['status'] ?? 'menunggu');
-        
-        switch ($st) {
-            case 'lunas':
-            case 'selesai':
-                $bgClass = "background-color: #d1fae5; color: #059669; border: 1px solid #a7f3d0;";
-                $iconClass = "fas fa-check-circle";
-                break;
-            case 'berangkat':
-                $bgClass = "background-color: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;";
-                $iconClass = "fas fa-plane-departure";
-                break;
-            case 'pulang':
-                $bgClass = "background-color: #f3e8ff; color: #9333ea; border: 1px solid #e9d5ff;";
-                $iconClass = "fas fa-plane-arrival";
-                break;
-            case 'proses':
-            case 'cicilan':
-                $bgClass = "background-color: #fef3c7; color: #d97706; border: 1px solid #fde68a;";
-                $iconClass = "fas fa-spinner fa-spin";
-                break;
-            case 'menunggu':
-            default:
-                $bgClass = "background-color: #fff7ed; color: #ea580c; border: 1px solid #ffedd5;";
-                $iconClass = "fas fa-clock";
-                break;
-        }
-    ?>
-    <span class="badge rounded-pill px-3 py-2 fw-semibold" style="<?= $bgClass; ?>">
-        <i class="<?= $iconClass; ?> me-1"></i> <?= ucfirst($st); ?>
-    </span>
-</td>
+                                        <!-- Status Badge -->
+                                        <td class="py-3">
+                                            <?php 
+                                                $st = strtolower($row['status'] ?? 'menunggu');
+                                                
+                                                switch ($st) {
+                                                    case 'terdaftar':
+                                                    case 'aktif':
+                                                        $bgClass = "background-color: #d1fae5; color: #059669; border: 1px solid #a7f3d0;";
+                                                        $iconClass = "fas fa-check-circle";
+                                                        break;
+                                                    case 'berangkat':
+                                                        $bgClass = "background-color: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd;";
+                                                        $iconClass = "fas fa-plane-departure";
+                                                        break;
+                                                    case 'selesai':
+                                                    case 'pulang':
+                                                        $bgClass = "background-color: #f3e8ff; color: #9333ea; border: 1px solid #e9d5ff;";
+                                                        $iconClass = "fas fa-plane-arrival";
+                                                        break;
+                                                    case 'menunggu':
+                                                    default:
+                                                        $bgClass = "background-color: #fff7ed; color: #ea580c; border: 1px solid #ffedd5;";
+                                                        $iconClass = "fas fa-clock";
+                                                        break;
+                                                }
+                                            ?>
+                                            <span class="badge rounded-pill px-3 py-2 fw-semibold" style="<?= $bgClass; ?>">
+                                                <i class="<?= $iconClass; ?> me-1"></i> <?= ucfirst($st); ?>
+                                            </span>
+                                        </td>
 
                                         <!-- Tombol Aksi -->
                                         <td class="py-3 text-center">
