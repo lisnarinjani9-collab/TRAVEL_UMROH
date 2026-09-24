@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
@@ -267,7 +268,4 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<?php 
-include "components/footer.php";
-include "components/bottom.php";
 ?>

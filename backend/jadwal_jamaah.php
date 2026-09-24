@@ -1,11 +1,14 @@
+
+<!-- jadwal_jamaah.php -->
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
 $auth = new Auth($db);
 
-$auth->checkRole(['jamaah']);
+// Mengizinkan Jamaah, Admin, dan Petugas untuk mengakses halaman ini
+$auth->checkRole(['jamaah', 'admin', 'petugas']);
 
 $userRole = $_SESSION['role'] ?? '';
 $userId   = $_SESSION['user_id'] ?? $_SESSION['id'] ?? null;
@@ -16,27 +19,30 @@ $errorMessage = "";
 $successMessage = "";
 
 try {
-    // Query mengambil data keberangkatan berdasarkan jamaah yang login
+    // Query mengambil data keberangkatan dan pendaftaran
     $query = "SELECT k.*, 
-                     p.tgl_daftar,
-                     COALESCE(j.nama_lengkap, 'Jamaah') AS nama_jamaah, 
-                     pk.nama_paket,
-                     pk.jenis AS jenis_layanan,
-                     pk.durasi,
-                     pk.deskripsi
-              FROM pendaftaran p
-              INNER JOIN paket pk ON p.paket_id = pk.id
-              LEFT JOIN keberangkatan k ON p.keberangkatan_id = k.id
-              LEFT JOIN jamaah j ON p.jamaah_id = j.id";
+                 p.tgl_daftar,
+                 COALESCE(j.nama_lengkap, 'Jamaah') AS nama_jamaah, 
+                 pk.nama_paket,
+                 pk.jenis AS jenis_layanan,
+                 pk.durasi,
+                 pk.deskripsi
+          FROM pendaftaran p
+          INNER JOIN paket pk ON p.paket_id = pk.id
+          LEFT JOIN keberangkatan k ON (p.keberangkatan_id = k.id OR k.paket_id = pk.id)
+          LEFT JOIN jamaah j ON p.jamaah_id = j.id";
 
     $params = [];
 
-    if (!empty($jamaahId)) {
-        $query .= " WHERE p.jamaah_id = :jamaah_id";
-        $params[':jamaah_id'] = $jamaahId;
-    } elseif (!empty($userId)) {
-        $query .= " WHERE j.user_id = :user_id";
-        $params[':user_id'] = $userId;
+    // Jika yang login adalah Jamaah, filter hanya data miliknya sendiri
+    if ($userRole === 'jamaah') {
+        if (!empty($jamaahId)) {
+            $query .= " WHERE p.jamaah_id = :jamaah_id";
+            $params[':jamaah_id'] = $jamaahId;
+        } elseif (!empty($userId)) {
+            $query .= " WHERE j.user_id = :user_id";
+            $params[':user_id'] = $userId;
+        }
     }
 
     $query .= " ORDER BY k.tanggal_berangkat ASC, p.id DESC";
@@ -46,7 +52,7 @@ try {
     $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
-    // Fallback query jika relasi jadwal belum terikat
+    // Fallback query jika pendaftaran belum terikat
     try {
         $queryFallback = "SELECT k.*, 
                                  pk.nama_paket,
@@ -149,8 +155,10 @@ include "components/sidebar.php";
                     <i class="fas fa-calendar-alt"></i>
                 </div>
                 <div>
-                    <h3 class="fw-extrabold text-dark mb-0">Jadwal Keberangkatan</h3>
-                    <p class="mb-0 text-muted small">Pantau detail tanggal keberangkatan, penerbangan, dan rincian perjalanan Anda</p>
+                    <h3 class="fw-extrabold text-dark mb-0">Jadwal Keberangkatan Jamaah</h3>
+                    <p class="mb-0 text-muted small">
+                        <?= ($userRole === 'jamaah') ? 'Pantau detail tanggal keberangkatan, penerbangan, dan rincian perjalanan Anda' : 'Monitoring jadwal keberangkatan seluruh jamaah terdaftar'; ?>
+                    </p>
                 </div>
             </div>
         </div>
@@ -168,7 +176,7 @@ include "components/sidebar.php";
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h5 class="fw-bold text-dark mb-1">Informasi Penerbangan & Transportasi</h5>
-                        <p class="text-muted small mb-0">Jadwal resmi penerbangan dan kepulangan ibadah Anda</p>
+                        <p class="text-muted small mb-0">Jadwal resmi penerbangan dan kepulangan ibadah</p>
                     </div>
                     <span class="badge bg-light text-dark border px-3 py-2 rounded-pill fw-semibold">
                         <?= count($jadwalList); ?> Agenda
@@ -180,6 +188,9 @@ include "components/sidebar.php";
                         <thead>
                             <tr class="border-bottom">
                                 <th class="pb-3 ps-2" style="width: 50px;">NO</th>
+                                <?php if ($userRole !== 'jamaah'): ?>
+                                    <th class="pb-3">NAMA JAMAAH</th>
+                                <?php endif; ?>
                                 <th class="pb-3">PROGRAM & LAYANAN</th>
                                 <th class="pb-3">MASKAPAI / EMBARKASI</th>
                                 <th class="pb-3">TGL KEBERANGKATAN</th>
@@ -192,16 +203,16 @@ include "components/sidebar.php";
                             <?php if (count($jadwalList) > 0): ?>
                                 <?php $no = 1; foreach ($jadwalList as $index => $row): ?>
                                 <?php 
-                                    $tglBerangkat = $row['tanggal_berangkat'] ?? null;
-                                    $tglPulang    = $row['tgl_kepulangan'] ?? null;
+                                    $tglBerangkat = $row['tanggal_berangkat'] ?? $row['tgl_keberangkatan'] ?? null;
+                                    $tglPulang    = $row['tanggal_pulang'] ?? $row['tgl_kepulangan'] ?? null;
                                     $today        = date('Y-m-d');
 
                                     if ($tglBerangkat && $tglBerangkat > $today) {
-                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px;"><i class="fas fa-plane-departure me-1"></i> Mendatang</span>';
+                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px;"><i class="fas fa-clock me-1"></i> Mendatang</span>';
                                     } elseif ($tglBerangkat && $tglBerangkat <= $today && ($tglPulang >= $today || !$tglPulang)) {
-                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #d1fae5; color: #047857; font-size: 11px;"><i class="fas fa-sync-alt me-1"></i> Berlangsung</span>';
+                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #fef3c7; color: #d97706; font-size: 11px;"><i class="fas fa-plane-departure me-1"></i> Berlangsung</span>';
                                     } else {
-                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #f1f5f9; color: #64748b; font-size: 11px;"><i class="fas fa-check-circle me-1"></i> Selesai</span>';
+                                        $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #d1fae5; color: #047857; font-size: 11px;"><i class="fas fa-check-circle me-1"></i> Selesai</span>';
                                     }
 
                                     $modalId = "detailModalJadwal" . $index;
@@ -210,9 +221,18 @@ include "components/sidebar.php";
                                     <td class="ps-2">
                                         <div class="d-flex align-items-center justify-content-center rounded-3 fw-bold text-muted" 
                                              style="width: 32px; height: 32px; background-color: #f1f5f9; font-size: 13px;">
-                                            <?= $no++; ?>
+                                            <?= sprintf("%02d", $no++); ?>
                                         </div>
                                     </td>
+
+                                    <?php if ($userRole !== 'jamaah'): ?>
+                                        <td>
+                                            <div class="fw-bold text-dark" style="font-size: 14px;">
+                                                <i class="fas fa-user-circle me-1 text-muted"></i>
+                                                <?= htmlspecialchars($row['nama_jamaah'] ?? 'Jamaah'); ?>
+                                            </div>
+                                        </td>
+                                    <?php endif; ?>
 
                                     <td>
                                         <div class="fw-bold text-dark" style="font-size: 14px;"><?= htmlspecialchars($row['nama_paket'] ?? 'Paket Belum Ditentukan'); ?></div>
@@ -264,6 +284,13 @@ include "components/sidebar.php";
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                             </div>
                                             <div class="modal-body pt-4">
+                                                <?php if ($userRole !== 'jamaah'): ?>
+                                                    <div class="p-3 bg-light rounded-3 mb-3">
+                                                        <span class="text-muted small d-block mb-1">Nama Jamaah</span>
+                                                        <h6 class="fw-bold text-dark mb-0"><?= htmlspecialchars($row['nama_jamaah'] ?? '-'); ?></h6>
+                                                    </div>
+                                                <?php endif; ?>
+
                                                 <div class="row g-3 mb-4">
                                                     <div class="col-6">
                                                         <span class="text-muted small d-block mb-1">Nama Paket</span>
@@ -297,7 +324,7 @@ include "components/sidebar.php";
                                                     </div>
                                                     <div class="col-6">
                                                         <span class="text-muted small d-block mb-1">Kuota Penerbangan</span>
-                                                        <span class="fw-semibold text-dark"><?= htmlspecialchars($row['kuota_penerbangan'] ?? '-'); ?> Orang</span>
+                                                        <span class="fw-semibold text-dark"><?= htmlspecialchars($row['kuota_penerbangan'] ?? $row['kuota'] ?? '-'); ?> Orang</span>
                                                     </div>
                                                 </div>
 
@@ -319,7 +346,7 @@ include "components/sidebar.php";
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="7" class="text-center py-5 text-muted">
+                                    <td colspan="<?= ($userRole !== 'jamaah') ? '8' : '7'; ?>" class="text-center py-5 text-muted">
                                         <i class="fas fa-calendar-times fa-2x mb-3 d-block opacity-25"></i>
                                         Belum ada jadwal keberangkatan yang tersedia.
                                     </td>
@@ -332,8 +359,4 @@ include "components/sidebar.php";
         </div>
     </div>
 </div>
-
-<?php 
-include "components/footer.php";
-include "components/bottom.php"; 
 ?>

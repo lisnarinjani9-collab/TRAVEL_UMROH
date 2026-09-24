@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 require_once "classes/User.php";
 
@@ -27,4 +28,5 @@ if (isset($_GET['id']) && !empty($_GET['id'])) {
     // DIPERBARUI: Diarahkan ke tabel_user.php
     header("Location: tabel_user.php");
     exit();
+
 }

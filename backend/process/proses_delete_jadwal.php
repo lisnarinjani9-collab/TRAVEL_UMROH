@@ -27,4 +27,3 @@ if ($id) {
     header("Location: ../tabel_keberangkatan.php");
     exit();
 }
-?>

@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 require_once "classes/Paket.php";
 
@@ -158,8 +159,4 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
-
-<?php 
-include "components/footer.php";
-include "components/bottom.php"; 
 ?>

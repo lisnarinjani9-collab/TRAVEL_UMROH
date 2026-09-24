@@ -1,8 +1,12 @@
+
+<!-- prosses_update_pembayaran.php -->
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
+$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
 $auth = new Auth($db);
 $auth->checkRole(['admin', 'petugas', 'jamaah']);
 
@@ -10,31 +14,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $pembayaranId = $_POST['pembayaran_id'] ?? null;
     $pendaftaranId = $_POST['pendaftaran_id'] ?? null;
     $sisaPembayaran = $_POST['sisa_pembayaran'] ?? 0;
-    $statusInput = $_POST['status'] ?? 'pending';
+    $statusInput = $_POST['status'] ?? 'Pending';
 
-// Pemetaan status dari form ke Enum Database (sesuaikan dengan nilai di database)
-    $statusPembayaran = 'pending';
-    if ($statusInput === 'lunas' || $statusInput === 'cicil') {
-        $statusPembayaran = 'valid';
-    } else if ($statusInput === 'ditolak') {
-        $statusPembayaran = 'ditolak';
+    // Pemetaan status dari form ke Enum Database (Huruf Kapital di Awal)
+    $statusPembayaran = 'Pending';
+    if ($statusInput === 'Lunas' || $statusInput === 'Cicil') { 
+        $statusPembayaran = 'Valid';
+    } else if ($statusInput === 'Ditolak') {
+        $statusPembayaran = 'Ditolak';
     }
+
+    // die($statusPembayaran);
 
     try {
         $db->beginTransaction();
 
-        // 1. Cek atau Update pada tabel Pembayaran
+        // Cari transaksi pembayaran jika pembayaran_id belum ada tetapi pendaftaran_id ada
+        if (empty($pembayaranId) && !empty($pendaftaranId)) {
+            $qCek = "SELECT pm.id FROM pembayaran pm 
+                                     JOIN pendaftaran p ON pm.jamaah_id = p.jamaah_id 
+                                     WHERE p.id = :pendaftaran_id 
+                                     ORDER BY pm.id DESC LIMIT 1";
+            $stmtCek = $db->prepare($qCek);
+            
+            $stmtCek->execute([':pendaftaran_id' => $pendaftaranId]);
+
+          
+            $existPembayaran = $stmtCek->fetch(PDO::FETCH_ASSOC);
+            if ($existPembayaran) {
+                $pembayaranId = $existPembayaran['id'];
+            }
+        }
+
+        // 1. Update jika data pembayaran ditemukan
         if (!empty($pembayaranId)) {
-            // Update jika data pembayaran sudah ada
-            $queryUpdate = "UPDATE pembayaran SET sisa_pembayaran = :sisa, status = :status WHERE id = :id";
+            $queryUpdate = "UPDATE pembayaran SET sisa_pembayaran = :sisa, status =:status WHERE id = :id";
+
+            //   die($statusPembayaran);
             $stmt = $db->prepare($queryUpdate);
             $stmt->execute([
                 ':sisa' => $sisaPembayaran,
                 ':status' => $statusPembayaran,
                 ':id' => $pembayaranId
             ]);
+            
         } else if (!empty($pendaftaranId)) {
-            // Ambil jamaah_id, keberangkatan_id, dan paket_id dari tabel pendaftaran
+            // Jika belum ada record pembayaran sama sekali, buat baru (INSERT)
             $stmtGetPendaftaran = $db->prepare("SELECT jamaah_id, keberangkatan_id, paket_id FROM pendaftaran WHERE id = :pendaftaran_id LIMIT 1");
             $stmtGetPendaftaran->execute([':pendaftaran_id' => $pendaftaranId]);
             $dataPendaftaran = $stmtGetPendaftaran->fetch(PDO::FETCH_ASSOC);
@@ -42,7 +67,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($dataPendaftaran && isset($dataPendaftaran['jamaah_id'])) {
                 $keberangkatanId = $dataPendaftaran['keberangkatan_id'];
 
-                // Jika keberangkatan_id di pendaftaran kosong/null, cari keberangkatan_id default berdasarkan paket_id
                 if (empty($keberangkatanId) && !empty($dataPendaftaran['paket_id'])) {
                     $stmtGetKeberangkatan = $db->prepare("SELECT id FROM keberangkatan WHERE paket_id = :paket_id LIMIT 1");
                     $stmtGetKeberangkatan->execute([':paket_id' => $dataPendaftaran['paket_id']]);
@@ -53,14 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // Validasi agar keberangkatan_id tidak null saat disimpan
                 if (empty($keberangkatanId)) {
-                    throw new Exception("Data keberangkatan untuk pendaftaran ini belum ditentukan. Harap set jadwal keberangkatan terlebih dahulu.");
+                    throw new Exception("Data keberangkatan untuk pendaftaran ini belum ditentukan.");
                 }
 
-                // Insert dengan menyertakan keberangkatan_id dan jamaah_id
                 $queryInsert = "INSERT INTO pembayaran (jamaah_id, keberangkatan_id, nominal, sisa_pembayaran, status, tanggal_bayar) 
                                 VALUES (:jamaah_id, :keberangkatan_id, 0, :sisa, :status, NOW())";
+                // die("INSERT INTO pembayaran (jamaah_id, keberangkatan_id, nominal, sisa_pembayaran, status, tanggal_bayar) VALUES (".$dataPendaftaran['jamaah_id'].", $keberangkatanId, 0, $sisaPembayaran, $statusPembayaran, NOW())");
+            
                 $stmt = $db->prepare($queryInsert);
                 $stmt->execute([
                     ':jamaah_id' => $dataPendaftaran['jamaah_id'],
@@ -70,25 +94,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ]);
             }
         }
-
+        // die($statusInput);
         // 2. Jika Pembayaran Full / Lunas / Sisa = 0, perbarui status pendaftaran jamaah
-        if ($statusInput === 'lunas' || (float)$sisaPembayaran == 0) {
+        if ($statusInput === 'Lunas' || (float)$sisaPembayaran == 0) {
+            // die('lunas');
             if (!empty($pendaftaranId)) {
-                $queryPendaftaran = "UPDATE pendaftaran SET status = 'Diproses' WHERE id = :pendaftaran_id";
+                $queryPendaftaran = "UPDATE pendaftaran SET status='Proses' WHERE id =:pendaftaran_id";
                 $stmtPendaftaran = $db->prepare($queryPendaftaran);
+                // die($stmtPendaftaran);
                 $stmtPendaftaran->execute([':pendaftaran_id' => $pendaftaranId]);
             }
         }
-
+        
         $db->commit();
-        header("Location: riwayat_pembayaran.php?status=success");
+    
+        header("Location: tabel_pembayaran.php?status=success");
         exit;
 
     } catch (Exception $e) {
         $db->rollBack();
-        echo "Gagal memperbarui data: " . $e->getMessage();
+        die("Gagal memperbarui data: " . $e);
     }
 } else {
-    header("Location: riwayat_pembayaran.php");
+    header("Location: tabel_pembayaran.php");
     exit;
+
 }
