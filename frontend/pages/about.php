@@ -1,33 +1,33 @@
-    <section id="about" class="about section">
 
-      <!-- Section Title -->
-      <div class="container section-title" data-aos="fade-up">
-        <h2>About Us</h2>
-      </div><!-- End Section Title -->
+<section id="about" class="about section" style="background:#f1f9f6;">
 
-      <div class="container">
+  <!-- Section Title -->
+  <div class="container section-title" data-aos="fade-up">
+    <h2 style="color:#064e3b;">Tentang Kami</h2>
+  </div><!-- End Section Title -->
 
-        <div class="row gy-4">
+  <div class="container">
 
-          <div class="col-lg-6 content" data-aos="fade-up" data-aos-delay="100">
-            <p>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore
-              magna aliqua.
-            </p>
-            <ul>
-              <li><i class="bi bi-check2-circle"></i> <span>Ullamco laboris nisi ut aliquip ex ea commodo consequat.</span></li>
-              <li><i class="bi bi-check2-circle"></i> <span>Duis aute irure dolor in reprehenderit in voluptate velit.</span></li>
-              <li><i class="bi bi-check2-circle"></i> <span>Ullamco laboris nisi ut aliquip ex ea commodo</span></li>
-            </ul>
-          </div>
+    <div class="row gy-4">
 
-          <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
-            <p>Ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. </p>
-            <a href="#" class="read-more"><span>Read More</span><i class="bi bi-arrow-right"></i></a>
-          </div>
-
-        </div>
-
+      <div class="col-lg-6 content" data-aos="fade-up" data-aos-delay="100">
+        <p>
+          Kami menyediakan layanan pendaftaran dan pengelolaan perjalanan Haji &amp; Umroh secara online,
+          mulai dari pemilihan paket, pendaftaran jamaah, hingga pemantauan status pembayaran dan keberangkatan.
+        </p>
+        <ul>
+          <li><i class="bi bi-check2-circle" style="color:#064e3b;"></i> <span>Pendaftaran online yang mudah dan cepat.</span></li>
+          <li><i class="bi bi-check2-circle" style="color:#064e3b;"></i> <span>Pilihan paket Haji dan Umroh yang beragam.</span></li>
+          <li><i class="bi bi-check2-circle" style="color:#064e3b;"></i> <span>Pemantauan status pendaftaran &amp; pembayaran secara real-time.</span></li>
+        </ul>
       </div>
 
-    </section>
+      <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
+        <p>Setiap jamaah yang mendaftar akan memiliki akun pribadi untuk memantau jadwal keberangkatan, riwayat pendaftaran, dan riwayat pembayaran kapan saja melalui panel jamaah kami.</p>
+      </div>
+
+    </div>
+
+  </div>
+
+</section>

@@ -63,12 +63,21 @@
   /**
    * Preloader
    */
+
+  const preloader = document.querySelector('#preloader');
+  if (preloader) {
+    window.addEventListener('load', () => {
+      preloader.remove();
+    });
+  } 
+
   // const preloader = document.querySelector('#preloader');
   // if (preloader) {
   //   window.addEventListener('load', () => {
   //     preloader.remove();
   //   });
   // } 
+>>>>>>> badcded54c7e08f5186ff2067a77f0e85d1a90a7
 
   /**
    * Scroll top button

@@ -1,5 +1,7 @@
+
+<!-- riwayat_pendaftaran.php -->
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
@@ -49,6 +51,7 @@ try {
     $riwayat = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
+
     try {
         $queryFallback = "SELECT p.*, 
                                  'Jamaah' AS nama_jamaah,
@@ -56,8 +59,10 @@ try {
                                  COALESCE(pk.harga, 0) AS harga_paket,
                                  'Haji/Umroh' AS jenis_layanan,
                                  pk.durasi,
+                                 pb.status as status_pembayaran,
                                  pk.deskripsi
                           FROM pendaftaran p
+                          LEFT JOIN pembayaran pb ON p.id = pb.pendaftaran_id
                           LEFT JOIN jamaah j ON p.jamaah_id = j.id
                           LEFT JOIN paket pk ON p.paket_id = pk.id";
 
@@ -242,12 +247,15 @@ include "components/sidebar.php";
                                 <?php 
                                     $tglDaftarVal = $row['tgl_daftar'] ?? $row['tanggal_daftar'] ?? $row['created_at'] ?? null;
                                     
-                                    $status = strtolower($row['status'] ?? 'pending');
-                                    if ($status === 'lunas' || $status === 'verified' || $status === 'disetujui') {
+                                    // $status = strtolower($row['status_pembayaran'] ?? 'Pending');
+                                    $status = strtolower($row['status_pembayaran'] ?? 'Pending');
+                                    // echo($status);
+                                    
+                                    if ($status === 'Lunas' || $status === 'Verified' || $status === 'Disetujui' || $status === 'Valid') {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #d1fae5; color: #047857; font-size: 11px;"><i class="fas fa-check-circle me-1"></i> Lunas</span>';
-                                    } elseif ($status === 'dp' || $status === 'sebagian') {
+                                    } elseif ($status === 'Dp' || $status === 'Sebagian') {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #fef3c7; color: #b45309; font-size: 11px;"><i class="fas fa-wallet me-1"></i> DP / Cicil</span>';
-                                    } elseif ($status === 'batal' || $status === 'dibatalkan') {
+                                    } elseif ($status === 'Batal' || $status === 'Dibatalkan') {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #fee2e2; color: #ef4444; font-size: 11px;"><i class="fas fa-times-circle me-1"></i> Dibatalkan</span>';
                                     } else {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px;"><i class="fas fa-clock me-1"></i> Pending</span>';
@@ -292,10 +300,6 @@ include "components/sidebar.php";
                                             <button type="button" class="btn-action-yellow" data-bs-toggle="modal" data-bs-target="#modalDetail<?= $row['id']; ?>" title="Lihat Detail">
                                                 <i class="fas fa-eye" style="font-size: 12px;"></i>
                                             </button>
-                                            <!-- Tombol Update / Edit (Pensil Biru) -->
-                                            <a href="edit_pendaftaran.php?id=<?= $row['id']; ?>" class="btn-action-blue text-decoration-none" title="Edit Pendaftaran">
-                                                <i class="fas fa-pen-to-square" style="font-size: 12px;"></i>
-                                            </a>
                                         </div>
                                     </td>
                                 </tr>

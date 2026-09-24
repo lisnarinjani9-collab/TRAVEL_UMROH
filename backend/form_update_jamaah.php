@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
@@ -156,4 +157,5 @@ include "components/sidebar.php";
 <?php 
 include "components/footer.php";
 include "components/bottom.php";
+
 ?>

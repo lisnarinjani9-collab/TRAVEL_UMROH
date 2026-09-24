@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 require_once "classes/Paket.php";
 
@@ -21,4 +22,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo "<script>alert('Data paket gagal ditambahkan!'); window.history.back();</script>";
     }
 }
+
 ?>

@@ -1,50 +1,57 @@
+
+<!-- edit_pembayaran.php -->
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
 $auth = new Auth($db);
 
 // Izinkan admin, petugas, dan jamaah untuk mengakses halaman ini
-$auth->checkRole(['admin', 'petugas', 'jamaah']);
+$auth->checkRole(['admin', 'petugas']);
 
 $id = $_GET['id'] ?? null;
 if (!$id) {
-    header("Location: riwayat_pembayaran.php");
+    header("Location: tabel_pembayaran.php");
     exit;
 }
 
-// Query disesuaikan dengan relasi pm.jamaah_id = j.id
-$query = "SELECT pm.id AS pembayaran_id, 
-                 pm.sisa_pembayaran, 
-                 pm.nominal, 
-                 pm.tanggal_bayar, 
-                 pm.status AS status_pembayaran,
-                 p.id AS pendaftaran_id, 
-                 p.status AS status_pendaftaran,
-                 j.nama_lengkap, 
-                 pk.nama_paket, 
-                 COALESCE(pk.harga, 0) AS harga_paket
-          FROM pendaftaran p
-          LEFT JOIN jamaah j ON p.jamaah_id = j.id
+// Query mengambil data pendaftaran & pembayaran yang sesuai
+$query = "SELECT
+            p.id AS pendaftaran_id,
+            p.status AS status_pendaftaran,
+            p.jamaah_id,
+            j.nama_lengkap,
+            pk.nama_paket,
+            COALESCE(pk.harga, 0) AS harga_paket,
+            pm.id AS pembayaran_id,
+            pm.sisa_pembayaran,
+            pm.nominal,
+            pm.tanggal_bayar,
+            pm.status AS status_pembayaran
+          FROM pembayaran pm
+          LEFT JOIN pendaftaran p ON pm.pendaftaran_id = p.id
+          LEFT JOIN jamaah j ON pm.jamaah_id = j.id
           LEFT JOIN paket pk ON p.paket_id = pk.id
-          LEFT JOIN pembayaran pm ON pm.jamaah_id = j.id OR pm.id = :id
-          WHERE pm.id = :id OR p.id = :id
+          WHERE pm.id = :id
           LIMIT 1";
 
 $stmt = $db->prepare($query);
 $stmt->execute([':id' => $id]);
+
 $pembayaran = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$pembayaran) {
-    header("Location: riwayat_pembayaran.php");
+    header("Location: tabel_pembayaran.php");
     exit;
 }
 
 // Perhitungan Sisa Pembayaran Default
 $hargaPaket = (float)($pembayaran['harga_paket'] ?? 0);
 $nominalDibayar = (float)($pembayaran['nominal'] ?? 0);
-$sisaPembayaranDefault = isset($pembayaran['sisa_pembayaran']) && $pembayaran['sisa_pembayaran'] !== null ? $pembayaran['sisa_pembayaran'] : max(0, $hargaPaket - $nominalDibayar);
+$sisaPembayaranDefault = isset($pembayaran['sisa_pembayaran']) && $pembayaran['sisa_pembayaran'] !== null 
+    ? $pembayaran['sisa_pembayaran'] 
+    : max(0, $hargaPaket - $nominalDibayar);
 
 include "components/header.php";
 include "components/sidebar.php";
@@ -96,14 +103,13 @@ include "components/sidebar.php";
                         </div>
                     </div>
 
-                    <!-- Status Pembayaran (Dapat diubah oleh Admin) -->
+                    <!-- Status Pembayaran -->
                     <div class="mb-3">
                         <label for="status" class="form-label small fw-bold" style="color: #1a4d36;">Status Pembayaran</label>
-<select name="status" id="status" class="form-select form-select-lg fs-6" required>
-    <option value="pending" <?= in_array(strtolower($pembayaran['status_pembayaran'] ?? ''), ['pending', '']) ? 'selected' : ''; ?>>Pending / Menunggu Verifikasi</option>
-    <option value="cicil" <?= strtolower($pembayaran['status_pembayaran'] ?? '') === 'valid' && (float)($pembayaran['sisa_pembayaran'] ?? 0) > 0 ? 'selected' : ''; ?>>Cicil / Sebagian</option>
-    <option value="lunas" <?= strtolower($pembayaran['status_pembayaran'] ?? '') === 'valid' && (float)($pembayaran['sisa_pembayaran'] ?? 0) == 0 ? 'selected' : ''; ?>>Lunas / Full</option>
-</select>
+                        <select name="status" id="status" class="form-select form-select-lg fs-6" required>
+                            <option value="Pending" <?= in_array($pembayaran['status_pembayaran'] ?? '', ['Pending', '']) ? 'selected' : ''; ?>>Pending / Menunggu Verifikasi</option>
+                            <option value="Lunas" <?= ($pembayaran['status_pembayaran'] ?? '' === 'Valid' && (float)($pembayaran['sisa_pembayaran'] ?? 0) == 0) || $pembayaran['status_pembayaran'] ?? '' === 'Lunas' ? 'selected' : ''; ?>>Lunas / Full</option>
+                        </select>
                     </div>
 
                     <!-- SISA PEMBAYARAN -->
@@ -130,7 +136,7 @@ include "components/sidebar.php";
 
                     <!-- Tombol Aksi -->
                     <div class="d-flex justify-content-end gap-2 pt-2">
-                        <a href="riwayat_pembayaran.php" class="btn border btn-md px-4 fw-medium" style="background-color: #f5f5f4; color: #57534e;">
+                        <a href="tabel_pembayaran.php" class="btn border btn-md px-4 fw-medium" style="background-color: #f5f5f4; color: #57534e;">
                             <i class="fas fa-arrow-left me-1"></i> Kembali
                         </a>
                         <button type="submit" class="btn btn-md px-4 fw-bold shadow-sm" style="background-color: #d4a359; color: #ffffff; border: none;">
@@ -152,15 +158,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (sisaDisplay && sisaReal) {
         sisaDisplay.addEventListener('input', function (e) {
             let value = this.value.replace(/\D/g, '');
-            sisaReal.value = value;
+            sisaReal.value = value ? value : '0';
             this.value = value ? new Intl.NumberFormat('id-ID').format(value) : '0';
         });
     }
 
-    // Mengosongkan sisa pembayaran otomatis jika memilih status Lunas
     if (statusSelect) {
         statusSelect.addEventListener('change', function () {
-            if (this.value === 'lunas') {
+            if (this.value === 'Lunas') {
                 sisaReal.value = '0';
                 sisaDisplay.value = '0';
             }
@@ -168,8 +173,4 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
-
-<?php 
-include "components/footer.php";
-include "components/bottom.php"; 
 ?>

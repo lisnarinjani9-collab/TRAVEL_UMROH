@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 require_once "classes/Paket.php";
 
@@ -45,4 +46,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 } else {
     header("Location: tabel_paket.php");
     exit();
+
 }

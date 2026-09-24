@@ -1,5 +1,6 @@
+
 <?php
-include "connection.php";
+include "database/connection.php";
 require_once "classes/Auth.php";
 
 $conn = mysqli_connect("localhost", "root", "", "travel_haji_umroh");

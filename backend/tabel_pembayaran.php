@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
@@ -234,7 +235,7 @@ include "components/sidebar.php";
                                     </td>
                                     <td class="py-3 text-center"><?= $badge; ?></td>
                                     <td class="py-3 text-center">
-                                        <a href="detail_pembayaran.php?id=<?= $targetId; ?>" class="btn btn-sm btn-light border rounded-3" title="Kelola">
+                                        <a href="edit_pembayaran.php?id=<?= $targetId; ?>" class="btn btn-sm btn-light border rounded-3" title="Kelola">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                     </td>

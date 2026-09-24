@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 require_once "classes/Paket.php";
 
@@ -17,4 +18,5 @@ if (isset($_GET['id'])) {
         echo "<script>alert('Data paket gagal dihapus!'); window.location.href='tabel_paket.php';</script>";
     }
 }
+
 ?>

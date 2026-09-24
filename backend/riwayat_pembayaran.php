@@ -1,5 +1,7 @@
+
+<!-- riwayat_pembayaran.php -->
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
@@ -20,13 +22,18 @@ if (isset($_GET['status']) && $_GET['status'] === 'success') {
 }
 
 try {
-    // Query mengambil data pembayaran yang di-JOIN dengan pendaftaran, jamaah, dan paket
+    
+    // 1. Query mengambil data pembayaran yang di-JOIN dengan pendaftaran, jamaah, dan paket
+    // p = pendaftaran
+    // pk = paket
+    // j = jamaah
+    // pb = pembayaran
     $query = "SELECT pb.*, 
                      p.tgl_daftar,
                      COALESCE(j.nama_lengkap, 'Jamaah') AS nama_jamaah, 
                      pk.nama_paket,
                      COALESCE(pk.harga, 0) AS harga_paket,
-                     COALESCE(pk.jenis, pk.tipe, 'Haji/Umroh') AS jenis_layanan,
+                     COALESCE(pk.jenis, 'Haji/Umroh') AS jenis_layanan,
                      pk.durasi,
                      pk.deskripsi
               FROM pembayaran pb
@@ -36,6 +43,7 @@ try {
 
     $params = [];
 
+    // Perbaikan: Mendefinisikan array parameter dan meletakkan WHERE sebelum GROUP BY
     if (!empty($jamaahId)) {
         $query .= " WHERE p.jamaah_id = :jamaah_id";
         $params[':jamaah_id'] = $jamaahId;
@@ -44,31 +52,29 @@ try {
         $params[':user_id'] = $userId;
     }
 
+    // Perbaikan: GROUP BY diletakkan setelah WHERE, diikuti dengan ORDER BY
+    // $query .= " GROUP BY pb.pendaftaran_id";
     $query .= " ORDER BY pb.id DESC";
 
     $stmt = $db->prepare($query);
     $stmt->execute($params);
     $riwayat = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // die("Masuk pak eko 1");
 
 } catch (PDOException $e) {
-    // Fallback query jika struktur relasi sedikit berbeda atau data pembayaran belum terhubung
     try {
-        $queryFallback = "SELECT p.id AS pendaftaran_id,
-                                 p.tgl_daftar,
-                                 'Jamaah' AS nama_jamaah,
-                                 pk.nama_paket,
-                                 COALESCE(pk.harga, 0) AS harga_paket,
-                                 'Haji/Umroh' AS jenis_layanan,
-                                 NULL AS bukti_bayar,
-                                 p.status AS status_pembayaran,
-                                 COALESCE(pk.harga, 0) AS jumlah_bayar,
-                                 pk.durasi,
-                                 pk.deskripsi
-                          FROM pendaftaran p
-                          LEFT JOIN jamaah j ON p.jamaah_id = j.id
-                          LEFT JOIN paket pk ON p.paket_id = pk.id";
 
+        // die($e);
+        // Perbaikan: Menghapus tanda "..." yang memicu Syntax Error
+        $queryFallback = "SELECT p.id AS pendaftaran_id, p.tgl_daftar, pk.nama_paket
+                        FROM pendaftaran p
+                        LEFT JOIN pembayaran pb ON pb.pendaftaran_id = p.id
+                        LEFT JOIN jamaah j ON p.jamaah_id = j.id 
+                        LEFT JOIN paket pk ON p.paket_id = pk.id";
+
+        // Perbaikan: Mendeklarasikan $paramsFallback dan mengisinya agar tidak memicu Undefined Variable
         $paramsFallback = [];
+        
         if (!empty($jamaahId)) {
             $queryFallback .= " WHERE p.jamaah_id = :jamaah_id";
             $paramsFallback[':jamaah_id'] = $jamaahId;
@@ -76,12 +82,13 @@ try {
             $queryFallback .= " WHERE j.user_id = :user_id";
             $paramsFallback[':user_id'] = $userId;
         }
-
+        
         $queryFallback .= " ORDER BY p.id DESC";
 
         $stmt = $db->prepare($queryFallback);
         $stmt->execute($paramsFallback);
         $riwayat = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
     } catch (PDOException $ex) {
         $errorMessage = "Terjadi kesalahan saat mengambil riwayat pembayaran: " . $ex->getMessage();
     }
@@ -204,6 +211,7 @@ include "components/sidebar.php";
     <?php include "components/topbar.php"; ?>
 
     <div class="content-body p-4">
+ 
         <!-- Header Halaman -->
         <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
             <div class="d-flex align-items-center">
@@ -257,18 +265,20 @@ include "components/sidebar.php";
                                 <th class="pb-3 text-center" style="width: 120px;">AKSI</th>
                             </tr>
                         </thead>
-<tbody>
+                        <tbody>
+
                             <?php if (count($riwayat) > 0): ?>
                                 <?php $no = 1; foreach ($riwayat as $index => $row): ?>
                                 <?php 
                                     $tglBayarVal = $row['tgl_bayar'] ?? $row['tanggal_bayar'] ?? $row['created_at'] ?? $row['tgl_daftar'] ?? null;
                                     
-                                    $status = strtolower($row['status_pembayaran'] ?? $row['status'] ?? 'pending');
-                                    if ($status === 'lunas' || $status === 'verified' || $status === 'disetujui' || $status === 'berhasil' || $status === 'valid') {
+                                    $status = $row['status_pembayaran'] ?? $row['status'] ?? 'Pending';
+
+                                    if ($status === 'Lunas' || $status === 'Verified' || $status === 'Disetujui' || $status === 'Berhasil' || $status === 'Valid') {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #d1fae5; color: #047857; font-size: 11px;"><i class="fas fa-check-circle me-1"></i> Lunas</span>';
-                                    } elseif ($status === 'dp' || $status === 'sebagian' || $status === 'dicicil') {
+                                    } elseif ($status === 'Dp' || $status === 'Sebagian' || $status === 'Dicicil') {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #fef3c7; color: #b45309; font-size: 11px;"><i class="fas fa-wallet me-1"></i> DP / Cicil</span>';
-                                    } elseif ($status === 'ditolak' || $status === 'batal' || $status === 'dibatalkan') {
+                                    } elseif ($status === 'Ditolak' || $status === 'Batal' || $status === 'Dibatalkan') {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #fee2e2; color: #ef4444; font-size: 11px;"><i class="fas fa-times-circle me-1"></i> Ditolak</span>';
                                     } else {
                                         $statusBadge = '<span class="badge rounded-pill px-3 py-2" style="background-color: #e0f2fe; color: #0284c7; font-size: 11px;"><i class="fas fa-clock me-1"></i> Menunggu Verifikasi</span>';
@@ -278,7 +288,7 @@ include "components/sidebar.php";
                                     $hargaPaket = (float)($row['harga_paket'] ?? 0);
                                     $nominalDibayar = (float)($row['nominal'] ?? $row['jumlah_bayar'] ?? 0);
                                     
-                                    $totalBiaya = $hargaPaket > 0 ? $hargaPaket : $nominalDibayar;
+                                    $totalBiaya = ($hargaPaket > 0) ? $hargaPaket : $nominalDibayar;
                                     
                                     if (isset($row['sisa_pembayaran']) && $row['sisa_pembayaran'] !== null && $row['sisa_pembayaran'] !== '' && (float)$row['sisa_pembayaran'] > 0) {
                                         $sisaPembayaran = (float)$row['sisa_pembayaran'];
@@ -301,7 +311,7 @@ include "components/sidebar.php";
                                         <div class="fw-bold text-dark" style="font-size: 14px;"><?= htmlspecialchars($row['nama_paket'] ?? 'Layanan Belum Dipilih'); ?></div>
                                         <div class="text-muted small" style="font-size: 12px;">
                                             <span class="badge px-2 py-1 mt-1" style="background-color: #f1f5f9; color: #475569;">
-                                                <?= htmlspecialchars($row['jenis_layanan']); ?>
+                                            
                                             </span>
                                         </div>
                                     </td>
@@ -332,10 +342,6 @@ include "components/sidebar.php";
                                             <button type="button" class="btn-action-yellow" data-bs-toggle="modal" data-bs-target="#<?= $modalId; ?>" title="Lihat Detail Pembayaran">
                                                 <i class="fas fa-eye" style="font-size: 12px;"></i>
                                             </button>
-                                            <!-- Tombol Edit Bukti Pembayaran (Pensil Biru) -->
-                                            <a href="edit_pembayaran.php?id=<?= $row['id'] ?? $row['pendaftaran_id']; ?>" class="btn-action-blue text-decoration-none" title="Edit / Upload Ulang Bukti">
-                                                <i class="fas fa-pen-to-square" style="font-size: 12px;"></i>
-                                            </a>
                                         </div>
                                     </td>
                                 </tr>

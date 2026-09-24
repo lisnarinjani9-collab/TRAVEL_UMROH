@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
@@ -43,6 +44,8 @@ foreach ($pendaftaran as $p) {
         $belumDijadwalkan++;
     }
 }
+   
+
 
 include "components/header.php";
 include "components/sidebar.php";
@@ -294,6 +297,10 @@ include "components/sidebar.php";
                                                 <?php if ($userRole === 'admin'): ?>
                                                     <a href="delete_pendaftaran.php?id=<?= $row['id']; ?>" class="btn btn-sm action-btn-delete px-2.5 py-1.5" onclick="return confirm('Yakin ingin menghapus data pendaftaran ini?');" title="Hapus Data">
                                                         <i class="fas fa-trash"></i>
+                                                    </a>
+
+                                                     <a href="form_tambah_jadwal.php?id_pendaftaran=<?= $row['id']; ?>" class="btn btn-sm action-btn-edit px-2.5 py-1.5" title="Buat Jadwal">
+                                                        Buat Jadwal
                                                     </a>
                                                 <?php endif; ?>
                                             </div>

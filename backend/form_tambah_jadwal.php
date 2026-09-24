@@ -1,5 +1,6 @@
+
 <?php
-require_once "connection.php";
+require_once "database/connection.php";
 require_once "classes/Auth.php";
 
 $db = (new Database())->getConnection();
@@ -16,13 +17,25 @@ try {
 } catch (PDOException $e) {
     // Abaikan jika tabel belum siap
 }
+ $pendaftaran_id = $_GET['id_pendaftaran'];
+
+$query = "SELECT pendaftaran.id, paket.id as paket_id,paket.nama_paket FROM pendaftaran JOIN paket ON pendaftaran.paket_id = paket.id WHERE pendaftaran.id=:id";
+$stmtPendaftaran = $db->prepare($query);
+
+$stmtPendaftaran->execute([
+    ":id" => $pendaftaran_id
+]);
+$dataPendaftaran = $stmtPendaftaran->fetch(PDO::FETCH_ASSOC);
+
+// die(var_dump($dataPendaftaran));
 
 include "components/header.php";
 include "components/sidebar.php";
 ?>
 
 <!-- Import Google Fonts & Icons -->
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
 
 <style>
     :root {
@@ -52,7 +65,7 @@ include "components/sidebar.php";
 
     .form-card {
         border-radius: 20px;
-        border: 1px solid rgba(0,0,0,0.05);
+        border: 1px solid rgba(0, 0, 0, 0.05);
     }
 
     .form-label {
@@ -60,7 +73,8 @@ include "components/sidebar.php";
         font-size: 0.85rem;
     }
 
-    .form-control, .form-select {
+    .form-control,
+    .form-select {
         border-radius: 12px;
         border: 1px solid #e2e8f0;
         padding: 0.65rem 0.9rem;
@@ -69,7 +83,8 @@ include "components/sidebar.php";
         background-color: #ffffff;
     }
 
-    .form-control:focus, .form-select:focus {
+    .form-control:focus,
+    .form-select:focus {
         border-color: var(--primary-emerald);
         box-shadow: 0 0 0 4px rgba(26, 77, 54, 0.1);
     }
@@ -122,39 +137,43 @@ include "components/sidebar.php";
         <!-- Form Card Container -->
         <div class="card form-card border-0 shadow-sm bg-white">
             <div class="card-body p-4">
-                <div class="d-flex align-items-center fw-bold mb-3" style="color: var(--primary-emerald); font-size: 1.05rem;">
+                <div class="d-flex align-items-center fw-bold mb-3"
+                    style="color: var(--primary-emerald); font-size: 1.05rem;">
                     <i class="fas fa-calendar-alt me-2"></i> Detail Jadwal Penerbangan
                 </div>
                 <hr class="mt-0 mb-4" style="border-color: #f1f5f9;">
 
                 <form action="proses_tambah_jadwal.php" method="POST">
                     <div class="row g-3">
+
                         <!-- Pilih Paket Travel -->
                         <div class="col-md-12 mb-2">
-                            <label for="paket_id" class="form-label fw-semibold">Pilih Paket Travel <span class="text-danger">*</span></label>
-                            <select class="form-select" id="paket_id" name="paket_id" required>
-                                <option value="" selected disabled>-- Pilih Paket Haji / Umroh --</option>
-                                <?php foreach ($paketList as $pkt): ?>
-                                    <option value="<?= $pkt['id']; ?>"><?= htmlspecialchars($pkt['nama_paket']); ?></option>
-                                <?php endforeach; ?>
-                            </select>
+                            <label for="paket_id" class="form-label fw-semibold">Paket Travel <span
+                                    class="text-danger">*</span></label>
+                            <input type="hidden" name="paket_id" value="<?=  $dataPendaftaran['paket_id'] ?>"> <br>
+                            <input type="text" class="form-control" name="paket_id" value="<?=  $dataPendaftaran['nama_paket'] ?>" disabled>
+                            
                         </div>
 
                         <!-- Tanggal Keberangkatan -->
                         <div class="col-md-6 mb-2">
-                            <label for="tanggal_berangkat" class="form-label fw-semibold">Tanggal Keberangkatan <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="tanggal_berangkat" name="tanggal_berangkat" required>
+                            <label for="tanggal_berangkat" class="form-label fw-semibold">Tanggal Keberangkatan <span
+                                    class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="tanggal_berangkat" name="tanggal_berangkat"
+                                required>
                         </div>
 
                         <!-- Tanggal Kepulangan -->
                         <div class="col-md-6 mb-2">
-                            <label for="tgl_kepulangan" class="form-label fw-semibold">Tanggal Kepulangan (Estimasi)</label>
+                            <label for="tgl_kepulangan" class="form-label fw-semibold">Tanggal Kepulangan
+                                (Estimasi)</label>
                             <input type="date" class="form-control" id="tgl_kepulangan" name="tgl_kepulangan">
                         </div>
 
                         <!-- Nama Maskapai (Dropdown) -->
                         <div class="col-md-6 mb-2">
-                            <label for="maskapai" class="form-label fw-semibold">Nama Maskapai <span class="text-danger">*</span></label>
+                            <label for="maskapai" class="form-label fw-semibold">Nama Maskapai <span
+                                    class="text-danger">*</span></label>
                             <select class="form-select" id="maskapai" name="maskapai" required>
                                 <option value="" selected disabled>-- Pilih Maskapai --</option>
                                 <option value="Saudia Airlines">Saudia Airlines</option>
@@ -170,7 +189,8 @@ include "components/sidebar.php";
 
                         <!-- Embarkasi / Bandara (Dropdown) -->
                         <div class="col-md-3 mb-2">
-                            <label for="embarkasi" class="form-label fw-semibold">Embarkasi / Bandara <span class="text-danger">*</span></label>
+                            <label for="embarkasi" class="form-label fw-semibold">Embarkasi / Bandara <span
+                                    class="text-danger">*</span></label>
                             <select class="form-select" id="embarkasi" name="embarkasi" required>
                                 <option value="" selected disabled>-- Pilih Embarkasi --</option>
                                 <option value="Jakarta (CGK)">Jakarta (CGK)</option>
@@ -186,7 +206,8 @@ include "components/sidebar.php";
 
                         <!-- Kuota Penerbangan (Dropdown) -->
                         <div class="col-md-3 mb-2">
-                            <label for="kuota" class="form-label fw-semibold">Kuota Penerbangan <span class="text-danger">*</span></label>
+                            <label for="kuota" class="form-label fw-semibold">Kuota Penerbangan <span
+                                    class="text-danger">*</span></label>
                             <select class="form-select" id="kuota" name="kuota" required>
                                 <option value="" selected disabled>-- Pilih Kuota --</option>
                                 <option value="20">20 Pax</option>
@@ -202,17 +223,19 @@ include "components/sidebar.php";
                         <!-- Catatan / Keterangan -->
                         <div class="col-12 mb-3">
                             <label for="keterangan" class="form-label fw-semibold">Catatan / Keterangan Tambahan</label>
-                            <textarea class="form-control" id="keterangan" name="keterangan" rows="3" 
-                                      placeholder="Tambahkan instruksi berkumpul di bandara, jam check-in, atau info penting lainnya..."></textarea>
+                            <textarea class="form-control" id="keterangan" name="keterangan" rows="3"
+                                placeholder="Tambahkan instruksi berkumpul di bandara, jam check-in, atau info penting lainnya..."></textarea>
                         </div>
                     </div>
 
                     <!-- Tombol Aksi -->
                     <div class="d-flex justify-content-end gap-2 pt-3 border-top" style="border-color: #f1f5f9;">
-                        <a href="tabel_keberangkatan.php" class="btn btn-cancel px-4 py-2 d-flex align-items-center gap-2">
+                        <a href="tabel_keberangkatan.php"
+                            class="btn btn-cancel px-4 py-2 d-flex align-items-center gap-2">
                             <i class="fas fa-arrow-left"></i> Kembali
                         </a>
-                        <button type="submit" class="btn btn-submit-theme px-4 py-2 d-flex align-items-center gap-2 shadow-sm">
+                        <button type="submit"
+                            class="btn btn-submit-theme px-4 py-2 d-flex align-items-center gap-2 shadow-sm">
                             <i class="fas fa-save"></i> Simpan Jadwal
                         </button>
                     </div>
